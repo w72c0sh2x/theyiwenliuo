@@ -91,16 +91,18 @@ class MatrixClock(WS2812Matrix):
 		self.set_brightness(20)
 
 	def show_time(self):
+		is_new_hour = False
 		datetime = self.__rtc.datetime()
 		hour = datetime[4]
 		minute = datetime[5]
 
 		if self.__last_hour != hour and minute == 0:
 			self.__last_hour = hour
+			is_new_hour = True
 			self.show_blink()
 
 		self.set_hour(hour)
-		self.set_minute(minute)
+		self.set_minute(minute, is_new_hour)
 
 		if self.powered_on:
 			self.show()
@@ -213,7 +215,7 @@ class MatrixClock(WS2812Matrix):
 			for index, bit in enumerate(hour_ones[count * 5:count * 5 + 5]):
 				self.__neopixel[start + count * self.__height + index] = self.__white if bit == '1' else self.__black
 
-	def set_minute(self, value:int):
+	def set_minute(self, value:int, is_new_hour:bool):
 		minute = self.__zfill_time(value)
 		minute_tens = int(minute[0])
 		minute_ones = int(minute[1])
@@ -228,8 +230,16 @@ class MatrixClock(WS2812Matrix):
 			self.__neopixel[start + index] = self.__blue
 
 		# if minute_ones == 0:
-		for index in self.__MINUTE_ONES_PLACE_LIST:
-			self.__neopixel[index] = self.__black
+		if not is_new_hour and minute_ones == 0:
+			for index in range(8, -1, -1):
+				self.__neopixel[self.__MINUTE_ONES_PLACE_LIST[index]] = self.__black
+
+				if self.powered_on:
+					utime.sleep(0.05)
+					self.show()
+
+		# for index in self.__MINUTE_ONES_PLACE_LIST:
+		# 	self.__neopixel[index] = self.__black
 
 		count = 0
 		for index in range(minute_ones):
