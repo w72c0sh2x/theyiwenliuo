@@ -1,9 +1,9 @@
 """
 Copyright © 2023 Walkline Wang (https://walkline.wang)
-Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
+Gitee: https://gitee.com/walkline/micropython-online-updater
 """
-__version__ = '0.1.2'
-__version_info__ = (0, 1, 2)
+__version__ = '0.2'
+__version_info__ = (0, 2)
 print('module update version:', __version__)
 
 
@@ -17,7 +17,7 @@ from machine import reset
 UPDATE_PATH = '/update'
 UPDATE_CONFIG_FILE = 'ota_config.py'
 URL_PREFIX = 'https://gitee.com/walkline/micropython-ws2812-led-clock/raw/master'
-# URL_PREFIX = 'https://walkline.wang'
+
 UPDATE_CONFIG_URL = f'{URL_PREFIX}{UPDATE_PATH}/{UPDATE_CONFIG_FILE}'
 IMPORT_CONFIG_FILE = f'{UPDATE_PATH}/{UPDATE_CONFIG_FILE.replace(".py", "")}'
 
@@ -63,15 +63,15 @@ class FileUtilities(object):
 
 
 class OnlineUpdater(FileUtilities):
-	ERROR_UPDATE_SUCCESS   = 0
-	ERROR_UPDATE_FAILED    = 1
-	ERROR_NO_INTERNET      = 2
-	ERROR_NO_CONFIG_FILE   = 3
-	ERROR_DOWNLOAD_SUCCESS = 4
-	ERROR_DOWNLOAD_FAILED  = 5
-	ERROR_DOWNLOAD_INCOMPLETED = 5
+	ERROR_UPDATE_SUCCESS       = 0
+	ERROR_UPDATE_FAILED        = 1
+	ERROR_NO_INTERNET          = 2
+	ERROR_NO_CONFIG_FILE       = 3
+	ERROR_DOWNLOAD_SUCCESS     = 4
+	ERROR_DOWNLOAD_FAILED      = 5
+	ERROR_DOWNLOAD_INCOMPLETED = 6
 
-	def __init__(self, result_cb:function=None):
+	def __init__(self, update_cb:function=None):
 		# result_cb(result:int, msg:str, files:dict)
 		# files
 		# {
@@ -86,9 +86,9 @@ class OnlineUpdater(FileUtilities):
 		# 		'version'      : (0, 1, 1)
 		# 	},
 		# }
-		self.__result_cb = result_cb
+		self.__result_cb = update_cb
 
-		if not callable(result_cb):
+		if not callable(update_cb):
 			self.__result_cb = None
 
 		self.mkdirs(UPDATE_PATH)
@@ -246,10 +246,8 @@ class OnlineUpdater(FileUtilities):
 
 
 if __name__ == '__main__':
-	from utils.wifihandler import WifiHandler
-
 	def update_callback(result:int, msg:str, files:dict):
-		print(f'- result: {msg}')
+		print(f'- update result: {msg}')
 
 		if files:
 			for file in files.values():
@@ -263,8 +261,6 @@ if __name__ == '__main__':
 			# network.WLAN(network.STA_IF).active(False)
 			# reset()
 
-	if not network.WLAN(network.STA_IF).isconnected():
-		WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120)
-
-	updater = OnlineUpdater(update_callback)
-	updater.check()
+	if network.WLAN(network.STA_IF).isconnected():
+		updater = OnlineUpdater(update_callback)
+		updater.check()
