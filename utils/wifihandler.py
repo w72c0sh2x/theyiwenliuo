@@ -11,7 +11,7 @@ from machine import reset
 
 TIMEZONE = 8
 ntptime.host = 'ntp.ntsc.ac.cn'
-ntptime.NTP_DELTA -= TIMEZONE * 60 * 60
+# ntptime.NTP_DELTA -= TIMEZONE * 60 * 60
 # ntptime.host = 'ntp1.aliyun.com'
 
 __station_status_message = {
@@ -109,6 +109,7 @@ class WifiHandler(object):
 				try:
 					ntptime.settime()
 					time = utime.localtime()
+					time = utime.localtime(utime.mktime((time[0], time[1], time[2], time[3] + TIMEZONE, time[4], time[5], time[6], time[7])))
 					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
 					return
 				except OSError as ose:
@@ -184,3 +185,8 @@ essid = '{essid}'
 password = '{password}'
 '''
 			)
+
+
+if __name__ == '__main__':
+	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
+		WifiHandler.sync_time()
