@@ -4,8 +4,8 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 import utime
 import ntptime
+import network
 from machine import RTC
-from utils.wifihandler import WifiHandler
 
 # ntptime.host = 'ntp1.aliyun.com'
 ntptime.host = 'ntp.ntsc.ac.cn'
@@ -34,7 +34,7 @@ class Utilities(object):
 
 	@staticmethod
 	def sync_time(retry=5) -> bool:
-		if WifiHandler.is_sta_connected():
+		if network.WLAN(network.STA_IF).isconnected():
 			TIMEZONE = Utilities.import_config().TIMEZONE
 
 			print('syncing time...')
@@ -71,6 +71,8 @@ class Utilities(object):
 
 
 if __name__ == '__main__':
+	from utils.wifihandler import WifiHandler
+
 	print('connecting to internet...')
 	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
 		Utilities.sync_time(3)
