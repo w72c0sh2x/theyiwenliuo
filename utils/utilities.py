@@ -16,9 +16,9 @@ class Utilities(object):
 	@staticmethod
 	def import_config():
 		try:
-			Config = __import__('./config').Config
-		except ImportError:
 			from config import Config
+		except ImportError:
+			Config = __import__('config').Config
 
 		return Config
 

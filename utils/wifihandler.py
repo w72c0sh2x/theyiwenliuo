@@ -62,9 +62,9 @@ class WifiHandler(object):
 				except ImportError:
 					if WifiHandler.is_ble_mode():
 						try:
-							BLEConfig = __import__('./utils/ble_config').BLEConfig
-						except ImportError:
 							from utils.ble_config import BLEConfig
+						except ImportError:
+							BLEConfig = __import__('utils/ble_config').BLEConfig
 
 						print('Start bleconfig...')
 						bleconfig = BLEConfig()

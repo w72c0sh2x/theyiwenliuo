@@ -2,29 +2,35 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1'
-__version_info__ = (0, 1)
+__version__ = '0.1.1'
+__version_info__ = (0, 1, 1)
 print('module runner version:', __version__)
 
 
 import gc
 from utime import sleep
-from utils.utilities import Utilities
-from utils.wifihandler import WifiHandler
 from drivers.button import Button
 
 try:
-	MatrixClock = __import__('./matrix/matrix_clock').MatrixClock
+	from utils.utilities import Utilities
 except ImportError:
+	Utilities = __import__('utils/utilities').Utilities
+
+try:
+	from utils.wifihandler import WifiHandler
+except ImportError:
+	WifiHandler = __import__('utils/wifihandler').WifiHandler
+
+try:
 	from matrix.matrix_clock import MatrixClock
+except ImportError:
+	MatrixClock = __import__('matrix/matrix_clock').MatrixClock
 
 gc.collect()
 
+
 CONFIG = Utilities.import_config()
 
-clock = None
-buttons = None
-tasks = None
 
 class Runner(object):
 	def __init__(self):

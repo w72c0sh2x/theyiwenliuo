@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1.3'
-__version_info__ = (0, 1, 3)
+__version__ = '0.1.4'
+__version_info__ = (0, 1, 4)
 print('module matrix_clock version:', __version__)
 
 
@@ -12,30 +12,43 @@ from machine import RTC
 import utime
 import gc
 
-try:
-	from .ws2812 import WS2812
-except ImportError:
-	from matrix.ws2812 import WS2812
-
-from matrix.animation import Animation
 from drivers.photoresistor import Photoresistor
-from utils.wifihandler import WifiHandler
-from utils.utilities import Utilities
 
 try:
 	from utils.dispatcher import Dispatcher
 except ImportError:
 	from dispatcher import Dispatcher
 
+try:
+	from utils.utilities import Utilities
+except ImportError:
+	Utilities = __import__('utils/utilities').Utilities
+
+try:
+	from utils.wifihandler import WifiHandler
+except ImportError:
+	WifiHandler = __import__('utils/wifihandler').WifiHandler
+
+try:
+	from matrix.ws2812 import WS2812
+except ImportError:
+	WS2812 = __import__('matrix/ws2812').WS2812
+
+try:
+	from matrix.animation import Animation
+except ImportError:
+	Animation = __import__('matrix/animation').Animation
+
 gc.collect()
+
 
 ONLINE_UPDATE_ENABLED = True
 
 try:
-	OnlineUpdater = __import__('./utils/update').OnlineUpdater
+	from utils.update import OnlineUpdater
 except ImportError:
 	try:
-		from utils.update import OnlineUpdater
+		OnlineUpdater = __import__('utils/update').OnlineUpdater
 	except ImportError:
 		ONLINE_UPDATE_ENABLED = False
 #endregion import modules
@@ -315,7 +328,6 @@ class MatrixClock(WS2812, DateTime):
 	def stop(self):
 		self.__started = False
 
-		self.__tasks.del_work(self.__task_show_animation)
 		self.__tasks.del_work(self.__task_refresh_time)
 		self.__tasks.del_work(self.__task_refresh_calendar)
 		self.__tasks.del_work(self.__task_show_animation)

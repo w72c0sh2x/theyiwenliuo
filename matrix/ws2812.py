@@ -4,7 +4,11 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Pin
 from neopixel import NeoPixel
-from utils.utilities import Utilities
+
+try:
+	from utils.utilities import Utilities
+except ImportError:
+	Utilities = __import__('utils/utilities').Utilities
 
 
 CONFIG = Utilities.import_config()
