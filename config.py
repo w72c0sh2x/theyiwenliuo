@@ -17,7 +17,7 @@ if esp32c3: esp32.RMT.bitstream_channel(0)
 class Config(object):
 	class BRIGHTNESS(object):
 		# 根据实际情况设置亮度最大值，取值范围 (1~200)
-		MAX = 125
+		MAX = 150
 
 
 	class PINS(object):
@@ -61,10 +61,10 @@ class Config(object):
 		BLACK = (0, 0, 0)
 		WHITE = (255, 255, 255)
 		RED = (255, 0, 0)
-		BLUE = (60, 60, 255)
-		GREEN = (0, 255, 0)
-		GREEN_MEDIUM = (128, 128, 0)
-		GREEN_LOW = (0, 60, 60)
+		BLUE = (40, 40, 219)
+		GREEN = (247, 24, 255)			# minute 7~9
+		GREEN_MEDIUM = (55, 231, 253)	# minute 4~6
+		GREEN_LOW = (164, 229, 1)		# minute 1~3
 
 
 	# class WIFI(object):
