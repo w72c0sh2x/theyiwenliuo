@@ -2,7 +2,8 @@
 Copyright © 2022 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-timer-dispatcher
 """
-__version__ = 'v1.0'
+__version__ = 'v1.1'
+__version_info__ = (1, 1)
 
 from machine import Timer
 
@@ -56,7 +57,7 @@ class Dispatcher(object):
 
 		self.__timer.init(
 			mode=Timer.PERIODIC,
-			period=self.__DEFAULT_PERIOD,
+			period=Dispatcher.__DEFAULT_PERIOD,
 			callback=self.__worker_callback
 		)
 
@@ -70,14 +71,15 @@ class Dispatcher(object):
 		for worker in self.__workers.values():
 			if self.__paused: break
 
-			worker.counter = (worker.counter + 1) % 10 ** 5
+			worker.counter += 1
 
-			if (worker.counter * self.__DEFAULT_PERIOD * self.__adjusting_rate) % worker.period == 0:
+			if (worker.counter * Dispatcher.__DEFAULT_PERIOD * self.__adjusting_rate) % worker.period == 0:
+				worker.counter = 0
 				worker.do_work()
 
 	def add_work(self, work:function, period:int, *params) -> bool:
 		'''
-		添加一个调度任务
+		添加/更新一个调度任务
 
 		参数：
 		- work：任务函数
@@ -91,7 +93,7 @@ class Dispatcher(object):
 			result = True
 		else:
 			print('work must be a function')
-		
+
 		return result
 
 	def has_work(self, work:function) -> bool:
