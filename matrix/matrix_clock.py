@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1.2'
-__version_info__ = (0, 1, 2)
+__version__ = '0.1.3'
+__version_info__ = (0, 1, 3)
 print('module matrix_clock version:', __version__)
 
 
@@ -292,6 +292,7 @@ class MatrixClock(WS2812, DateTime):
 		self.__task_refresh_calendar = lambda: self.__refresh_calendar_cb()
 		self.__task_show_animation   = lambda: self.__show_animation_cb()
 		self.__task_switch_display   = lambda: self.__switch_display_cb()
+		self.__task_checking_update  = lambda: self.__online_update_check_cb()
 
 		self.switch_working_mode(self.mode)
 		self.__start_auto_brightness()
@@ -302,20 +303,23 @@ class MatrixClock(WS2812, DateTime):
 		if not self.__time_synced:
 			self.sync_time()
 
-		self.__start_auto_brightness()
 		self.__started = True
 
 		if self.mode == MatrixClock.MODE_CLOCK:
 			self.__refresh_time_cb()
-		elif self.mode == MatrixClock.MODE_CALENDAR_1:
-			self.__refresh_calendar_cb()
-		elif self.mode == MatrixClock.MODE_CALENDAR_2:
+		elif self.mode in (
+			MatrixClock.MODE_CALENDAR_1,
+			MatrixClock.MODE_CALENDAR_2):
 			self.__refresh_calendar_cb()
 
 	def stop(self):
 		self.__started = False
 
-		self.__tasks.del_works()
+		self.__tasks.del_work(self.__task_show_animation)
+		self.__tasks.del_work(self.__task_refresh_time)
+		self.__tasks.del_work(self.__task_refresh_calendar)
+		self.__tasks.del_work(self.__task_show_animation)
+
 		self.clean()
 
 	def show_content(self):
@@ -403,10 +407,8 @@ class MatrixClock(WS2812, DateTime):
 		self.__sync_time_cb()
 
 	def check_update(self):
-		self.__show_animation_async(Animation.UPDATING, self.convert_color(CONFIG.COLORS.SKYBLUE))
-
-		updater = OnlineUpdater(self.__online_update_cb)
-		updater.check()
+		self.__show_animation(Animation.UPDATING, self.convert_color(CONFIG.COLORS.SKYBLUE))
+		self.__tasks.add_work(self.__task_checking_update, len(self.__animation.__frames) * self.__animation.period)
 
 
 	def show_blink(self):
@@ -696,6 +698,13 @@ class MatrixClock(WS2812, DateTime):
 			self.__tasks.del_work(self.__task_switch_display)
 		else:
 			self.__tasks.add_work(self.__task_switch_display, CONFIG.PERIOD.SWITCH_DISPLAY_MS)
+
+	def __online_update_check_cb(self):
+		'''检查在线更新回调函数，用于延迟启动'''
+		self.__tasks.del_work(self.__task_checking_update)
+
+		updater = OnlineUpdater(self.__online_update_cb)
+		updater.check()
 
 	def __online_update_cb(self, result:int, msg:str, files:dict):
 		'''在线更新回调函数'''
