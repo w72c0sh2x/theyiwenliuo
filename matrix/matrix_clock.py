@@ -510,7 +510,7 @@ class MatrixClock(WS2812, DateTime):
 
 
 	def __show_animation(self, animation:int, colors:tuple):
-		'''同步播放简易动画'''
+		'''异步播放简易动画'''
 
 		if animation not in Animation.ANIMATION_LIST:
 			return
@@ -523,8 +523,8 @@ class MatrixClock(WS2812, DateTime):
 		# self.__show_animation_cb()
 		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
 
-	def __show_animation_async(self, animation:int, colors:tuple):
-		'''异步播放简易动画'''
+	def __show_animation_sync(self, animation:int, colors:tuple):
+		'''同步播放简易动画'''
 		if animation not in Animation.ANIMATION_LIST:
 			return
 
@@ -772,7 +772,7 @@ class MatrixClock(WS2812, DateTime):
 			animation = Animation.FAILED
 			colors    = self.convert_color(CONFIG.COLORS.RED)
 
-		self.__show_animation_async(animation, colors)
+		self.__show_animation_sync(animation, colors)
 
 		if result in (OnlineUpdater.ERROR_NO_INTERNET, OnlineUpdater.ERROR_NO_CONFIG_FILE) or\
 			(result == OnlineUpdater.ERROR_UPDATE_SUCCESS and not files):
