@@ -685,10 +685,8 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 	@mode.setter
 	def mode(self, value:int):
 		'''获取/设置当前工作模式'''
-		if value not in MatrixClock.MODE_LIST.keys():
-			self.__working_mode = MatrixClock.MODE_CLOCK
-
-		self.__working_mode = value
+		if value in MatrixClock.MODE_LIST.keys():
+			self.__working_mode = value
 
 	@property
 	def hourly_chime(self) -> bool:
