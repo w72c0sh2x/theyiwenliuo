@@ -358,6 +358,7 @@ class MatrixClock(WS2812, DateTime):
 			if save and\
 			   self.mode != self.__last_menu and\
 			   self.__last_menu in MatrixClock.MODE_LIST.keys():
+				self.__display_mode = self.__last_menu
 				self.switch_working_mode(self.__last_menu)
 				self.__output_matrix_mode_file()
 
@@ -452,7 +453,9 @@ class MatrixClock(WS2812, DateTime):
 		if not isinstance(colors, (tuple, list)):
 			return
 
+		self.__tasks.del_work(self.__task_show_animation)
 		self.__animation.select_animation(animation, colors)
+		# self.__show_animation_cb()
 		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
 
 	def __show_animation_async(self, animation:int, colors:tuple):
@@ -654,7 +657,7 @@ class MatrixClock(WS2812, DateTime):
 		self.__tasks.add_work(self.__task_refresh_calendar, self.milliseconds_until_next_hour())
 
 	def __show_animation_cb(self):
-		'''显示联网动画'''
+		'''显示动画回调函数'''
 		remains, frame, color = self.__animation.get_frame_and_color()
 
 		for index, bit in enumerate(self.__zfill_54bin(frame)):
@@ -682,6 +685,7 @@ class MatrixClock(WS2812, DateTime):
 			self.__tasks.add_work(self.__task_switch_display, CONFIG.PERIOD.SWITCH_DISPLAY_MS)
 
 	def __online_update_cb(self, result:int, msg:str, files:dict):
+		'''在线更新回调函数'''
 		print(f'- update result: {msg}')
 
 		self.__tasks.del_work(self.__task_show_animation)
@@ -788,6 +792,10 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 		'''获取/设置当前工作模式'''
 		if value in MatrixClock.MODE_LIST.keys():
 			self.__working_mode = value
+
+	@property
+	def is_menu_mode(self):
+		return self.__menu_mode
 
 	@property
 	def hourly_chime(self) -> bool:
