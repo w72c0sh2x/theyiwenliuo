@@ -363,6 +363,7 @@ class MatrixClock(WS2812, DateTime):
 				self.__output_matrix_mode_file()
 
 			self.__menu_mode = False
+			self.__last_menu = self.mode
 			self.stop()
 			self.start()
 		else:
