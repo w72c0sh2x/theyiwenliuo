@@ -7,7 +7,7 @@ import socket
 import utime
 import ntptime
 import smartconfig
-from machine import reset
+from machine import RTC, reset
 
 TIMEZONE = 8
 ntptime.host = 'ntp.ntsc.ac.cn'
@@ -109,7 +109,8 @@ class WifiHandler(object):
 				try:
 					ntptime.settime()
 					time = utime.localtime()
-					time = utime.localtime(utime.mktime((time[0], time[1], time[2], time[3] + TIMEZONE, time[4], time[5], time[6], time[7])))
+					RTC().datetime((time[0], time[1], time[2], time[6] + 1, time[3] + TIMEZONE, time[4], time[5], 0))
+					time = utime.localtime()
 					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
 					return
 				except OSError as ose:
