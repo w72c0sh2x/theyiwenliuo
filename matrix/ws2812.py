@@ -21,30 +21,22 @@ class WS2812(object):
 		self.__bright_percent = 100
 
 	def clean(self):
-		'''
-		清除屏幕（黑屏）
-		'''
+		'''清除屏幕（黑屏）'''
 		self.__neopixel.fill(CONFIG.COLORS.BLACK)
 		self.__neopixel.write()
 
 	def fill(self, color:tuple):
-		'''
-		填充指定颜色，参数支持 tuple(r, g, b)
-		'''
+		'''填充指定颜色，参数支持 tuple(r, g, b)'''
 		if isinstance(color, tuple) and len(color) == 3:
 			self.__neopixel.fill(self.convert_color(color))
 			self.__neopixel.write()
 
 	def show(self):
-		'''
-		显示所有指定的颜色
-		'''
+		'''显示所有指定的颜色'''
 		self.__neopixel.write()
 
 	def convert_color(self, color:tuple):
-		'''
-		设置颜色亮度
-		'''
+		'''设置颜色亮度'''
 		if isinstance(color, tuple) and len(color) == 3:
 			h, s, v = self.__rgb_to_hsv(*color)
 			v *= CONFIG.BRIGHTNESS.MAX / 100 * self.__bright_percent / 100
@@ -111,9 +103,7 @@ class WS2812(object):
 
 	@brightness.setter
 	def brightness(self, value:int):
-		'''
-		设置/获取亮度百分比
-		'''
+		'''获取/设置亮度百分比'''
 		self.__bright_percent = 1 if value < 1 else (100 if value > 100 else value)
 
 
