@@ -1,59 +1,39 @@
 """
-Copyright © 2021 Walkline Wang (https://walkline.wang)
+Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Pin
 from neopixel import NeoPixel
 from utils.utilities import Utilities
-Config = Utilities.import_config()
 
-GAMMA_LUT22 = (
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
-	3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6,
-	6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 11, 11, 11, 12,
-	12, 13, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19,
-	20, 20, 21, 22, 22, 23, 23, 24, 25, 25, 26, 26, 27, 28, 28, 29,
-	30, 30, 31, 32, 33, 33, 34, 35, 35, 36, 37, 38, 39, 39, 40, 41,
-	42, 43, 43, 44, 45, 46, 47, 48, 49, 49, 50, 51, 52, 53, 54, 55,
-	56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
-	73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 84, 85, 87, 88, 89, 90,
-	91, 93, 94, 95, 97, 98, 99, 100, 102, 103, 105, 106, 107, 109, 110, 111,
-	113, 114, 116, 117, 119, 120, 121, 123, 124, 126, 127, 129, 130, 132, 133, 135,
-	137, 138, 140, 141, 143, 145, 146, 148, 149, 151, 153, 154, 156, 158, 159, 161,
-	163, 165, 166, 168, 170, 172, 173, 175, 177, 179, 181, 182, 184, 186, 188, 190,
-	192, 194, 196, 197, 199, 201, 203, 205, 207, 209, 211, 213, 215, 217, 219, 221,
-	223, 225, 227, 229, 231, 234, 236, 238, 240, 242, 244, 246, 248, 251, 253, 255,
-)
 
-class WS2812Matrix(object):
-	__BRIGHT_MAX_VALUE = 200
-	__BRIGHT_MIN_VALUE = 1
+CONFIG = Utilities.import_config()
 
-	def __init__(self, width, height, pin=Config.PINS.DIN):
+
+class WS2812(object):
+	def __init__(self, width, height, pin):
 		self.__width = width
 		self.__height = height
 		self.__neopixel = NeoPixel(Pin(pin), self.__width * self.__height)
-		self.__bright_max = self.__BRIGHT_MAX_VALUE
+
+		# 设备当前亮度值（百分比）
+		# brightness = __bright_percent * bright_max
 		self.__bright_percent = 100
-		self.powered_on = True
 
 	def clean(self):
 		'''
 		清除屏幕（黑屏）
 		'''
-		self.__neopixel.fill(Config.Colors.BLACK)
-		self.show()
+		self.__neopixel.fill(CONFIG.COLORS.BLACK)
+		self.__neopixel.write()
 
-	def fill(self, color:tuple(int, tuple)):
+	def fill(self, color:tuple):
 		'''
-		填充指定颜色，参数支持 int 和 tuple (r, g, b)
+		填充指定颜色，参数支持 tuple(r, g, b)
 		'''
-		if isinstance(color, int):
-			color = self.set_color(color)
-			self.__neopixel.fill((color, color, color))
-		elif isinstance(color, tuple) and len(color) == 3:
-			self.__neopixel.fill(self.set_color(color))
+		if isinstance(color, tuple) and len(color) == 3:
+			self.__neopixel.fill(self.convert_color(color))
+			self.__neopixel.write()
 
 	def show(self):
 		'''
@@ -61,31 +41,61 @@ class WS2812Matrix(object):
 		'''
 		self.__neopixel.write()
 
-	def set_color(self, color:tuple(int, tuple)):
+	def convert_color(self, color:tuple):
 		'''
 		设置颜色亮度
 		'''
-		if isinstance(color, int):
-			rel = 255 / self.__bright_max
-			color = int((color / rel) * (self.__bright_percent / 100))
-			color = GAMMA_LUT22[color]
 		if isinstance(color, tuple) and len(color) == 3:
-			r, g, b = color
-			r = self.set_color(r)
-			g = self.set_color(g)
-			b = self.set_color(b)
-			color = (r, g, b)
+			h, s, v = self.__rgb_to_hsv(*color)
+			v *= CONFIG.BRIGHTNESS.MAX / 100 * self.__bright_percent / 100
+			color = self.__hsv_to_rgb(h, s, v)
 
 		return color
 
-	def set_bright_max(self, value:int):
-		'''
-		设置亮度最大值，取值范围 1~200
-		'''
-		if value > self.__BRIGHT_MAX_VALUE or value < self.__BRIGHT_MIN_VALUE:
-			self.__bright_max = self.__BRIGHT_MAX_VALUE
+	def __rgb_to_hsv(self, r:int, g:int, b:int) -> tuple:
+		r, g, b = r / 255.0, g / 255.0, b / 255.0
+		max_value = max(r, g, b)
+		min_value = min(r, g, b)
+		delta = max_value - min_value
+		if delta == 0:
+			return 0, 0, max_value
+		elif max_value == r:
+			h = (g - b) / delta % 6
+		elif max_value == g:
+			h = (b - r) / delta + 2
+		elif max_value == b:
+			h = (r - g) / delta + 4
+		h = h * 60
+		if h < 0:
+			h += 360
+		s = delta / max_value
+		v = max_value
+		return h, s, v
+
+	def __hsv_to_rgb(self, h:float, s:float, v:float) -> tuple:
+		if s == 0:
+			r, g, b = v, v, v
 		else:
-			self.__bright_max = value
+			h = h / 60.0
+			i = int(h)
+			f = h - i
+			p = v * (1 - s)
+			q = v * (1 - s * f)
+			t = v * (1 - s * (1 - f))
+			if i == 0:
+				r, g, b = v, t, p
+			elif i == 1:
+				r, g, b = q, v, p
+			elif i == 2:
+				r, g, b = p, v, t
+			elif i == 3:
+				r, g, b = p, q, v
+			elif i == 4:
+				r, g, b = t, p, v
+			else:
+				r, g, b = v, p, q
+
+		return int(r * 255), int(g * 255), int(b * 255)
 
 	@property
 	def led_count(self):
@@ -96,12 +106,39 @@ class WS2812Matrix(object):
 		return self.__neopixel.bpp
 
 	@property
-	def brightness(self):
+	def brightness(self) -> int:
 		return self.__bright_percent
 
 	@brightness.setter
 	def brightness(self, value:int):
 		'''
-		设置亮度百分比
+		设置/获取亮度百分比
 		'''
 		self.__bright_percent = 1 if value < 1 else (100 if value > 100 else value)
+
+
+if __name__ == '__main__':
+	from utime import sleep_ms
+	from random import choice
+
+	SKYBLUE = (9, 171, 255)
+	LIGHTGREEN = (121, 234, 0)
+	BLUE = (2, 79, 195)
+	GREEN_MEDIUM = (55, 231, 253)
+	DARKGRAY = (54, 54, 54)
+	COLORS = (SKYBLUE, LIGHTGREEN, BLUE, GREEN_MEDIUM, DARKGRAY)
+
+	ws2812 = WS2812(9, 6)
+
+	for _ in range(10):
+		color = choice(COLORS)
+		for percent in range(1, 101):
+			ws2812.brightness = percent
+			ws2812.fill(color)
+			sleep_ms(20)
+
+		color = choice(COLORS)
+		for percent in range(100, 0, -1):
+			ws2812.brightness = percent
+			ws2812.fill(color)
+			sleep_ms(20)
