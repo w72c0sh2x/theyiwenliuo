@@ -66,6 +66,7 @@ class Config(object):
 		BLACK        = (0, 0, 0)
 		WHITE        = (255, 255, 255)
 		BLUE         = (2, 79, 195)
+		RED          = (204, 0, 0)
 		DARKGRAY     = (54, 54, 54)
 		SKYBLUE      = (9, 171, 255)
 		LIGHTGREEN   = (121, 234, 0)
@@ -76,6 +77,8 @@ class Config(object):
 		ALMOSTBLACK  = (2, 2, 2)
 		ALMOSTGREEN  = (2, 3, 0)
 		DENIM        = (21, 96, 189)
+		AMARANTH     = (229, 43, 80)
+		AWESOME      = (255, 32, 82)
 
 		# 时间显示相关颜色
 		TIME_HOUR          = WHITE
