@@ -7,4 +7,4 @@
 - `*.mpy`：由`.py`文件经过转换过后的字节码文件
 - `README.md`：本文档
 
-> 生成`在线更新配置文件`的方法请参考项目说明文档
+> 生成`在线更新配置文件`的方法请参考 [Micropython Online Updater](https://gitee.com/walkline/micropython-online-updater) 项目中的说明
