@@ -40,12 +40,18 @@ class FileUtilities(object):
 
 			last_dir += f'/{dir}'
 
-	def move(self, src, dest):
+	def move(self, src, dest, chunk:int=512):
 		with open(src, 'rb') as src_file:
 			with open(dest, 'wb') as dest_file:
-				dest_file.write(src_file.read())
-				dest_file.flush()
+				while True:
+					data = src_file.read(chunk)
 
+					if len(data) > 0:
+						dest_file.write(data)
+					else:
+						break
+
+				dest_file.flush()
 		self.remove(src)
 
 	def remove(self, file):
@@ -244,6 +250,7 @@ class OnlineUpdater(FileUtilities):
 			except ImportError:
 				print(f'[{filename}] not exist in file system')
 
+		gc.collect()
 		return result
 
 
