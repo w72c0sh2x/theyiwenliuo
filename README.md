@@ -35,24 +35,40 @@
 
 板子上集成了`4个`功能按键和`1个`复位按键，目前按键功能如下：
 
-* `SW1`：长按`3秒`清除`配网信息`（`sta_config.py`文件）并重启
-* `SW2`：屏幕闪烁（整点提醒）
+* `SW1`：长按`3秒`清除`配网信息`，重启后进入`SmartConfig`配网模式
+* `SW2`：长按`3秒`清除`配网信息`，重启后进入`蓝牙`配网模式
 * `SW3`：循环切换屏幕显示亮度，但还会根据环境亮度自动调节，仅做调试用
 * `SW4`：屏幕显示开关
 * `EN`：手动重启设备
 
-#### 关于配网
+### 设备配网
 
-`MicroPython`不提供`SmartConfig`相关功能，也就是`Touch`和`AirKiss`配网功能，尝试了把`IDF`示例代码编译到固件中调用，目前已经可以使用以上两种方式进行配网了
+设备需要连接无线网络并且具备外网访问权限才能正常使用，目前支持使用`SmartConfig`和`蓝牙`方式进行配网
 
-> `Touch`方式需要使用乐鑫提供的 [EspTouch for Android](https://github.com/EspressifApp/EsptouchForAndroid/releases)
+#### SmartConfig 配网
 
-项目中提供的固件已集成`SmartConfig`模块，可用于获取`ssid`和`password`
+设备启动时默认进入`SmartConfig`模式，也可以长按`SW1`键进入此模式
 
-`SmartConfig`模块使用方法参考 [MicroPython SmartConfig CModule
-](https://gitee.com/walkline/micropython-smartconfig-cmodule)
+`SmartConfig`配网可以选择以下几种方法：
 
+* 关注 安信可科技 微信公众号，点击 应用开发→微信配网
+* 关注 乐鑫信息科技 微信公众号，点击 商铺→Airkiss 设备
+* 安装 [EspTouch for Android](https://github.com/EspressifApp/EsptouchForAndroid/releases)，点击 EspTouch
 
+输入 Wi-Fi密码 后点击 连接按钮，等待即可
+
+> 前往观看[配网演示视频](https://www.bilibili.com/video/BV1N34y1971S/
+)
+
+#### 蓝牙配网
+
+长按`SW2`键迷你电子台历进入`蓝牙`模式
+
+使用微信扫描下方的`小程序码`，即可使用`BLE Config`小程序进行配网操作
+
+![](https://gitee.com/walkline/micropython_ble_config/raw/master/images/ble_config.jpg)
+
+> `ESP-C3-12F`模组只支持连接`2.4G`无线网络，所以配网时要求路由器或热点必须为`2.4G`模式，`2.4G`与`5G`混合模式也不能正常工作
 
 > 如果长时间获取不到信息，则需要手动重启设备并重试
 
@@ -71,11 +87,21 @@
 
 因此，上图显示的时间为`13点35分`，是不是又能看时间又能活动大脑，一举两得了？
 
-### 如何使用
+### 如何烧录固件
 
-> 无论是调试代码还是烧录固件，都推荐使用 [AMPY Batch Tool](https://gitee.com/walkline/a-batch-tool)，以下说明均使用`ab 工具`进行讲解
+#### 1. 在线烧录固件
 
-#### 方法一：本地烧录固件
+推荐使用[在线烧录工具](https://walkline.wang/esp-web-installer/mini-calendar/)进行固件的烧录
+
+在线烧录工具提供 3 种不同的固件
+
+* 正式版：可以确保稳定运行，但是无法自动更新代码
+* 测试版：每次设备重启后都会联网进行在线更新，但是无法确保稳定运行
+* 开发版：不包含程序文件，仅用于项目代码调试
+
+#### 2. 本地烧录固件
+
+> 推荐使用 [AMPY Batch Tool](https://gitee.com/walkline/a-batch-tool)，以下说明使用`ab 工具`进行讲解
 
 设备连接到电脑，打开`终端`，输入命令，根据提示信息进行操作即可：
 
@@ -93,63 +119,27 @@ $ ab abc_config
 
 根据提示信息选择端口号就可以上传修改后的`config.py`文件，之后重启设备即可
 
-#### 方法二：在线烧录固件
-
-使用 [走线物联 ESP Web 下载工具](http://esp.walkline.wang) 可以在线烧录最新固件
-
-#### 方法三：调试代码
-
-设备连接到电脑，打开`终端`，输入命令：
-
-```bash
-$ cd path/to/repo
-$ ab # 上传除 main.py 以外的所有文件
-$ ab --repl # 进入串口调试
-
-# 使用快捷键 Ctrl+R 选择要调试的文件，如：main.py
-# 使用快捷键 Ctrl+Z 退出串口调试
-# 快捷键 Ctrl+D 为软重启，Ctrl+X 为硬重启
-```
-
-#### 方法四：上传源文件
-
-设备连接到电脑，打开`终端`，输入命令：
-
-```bash
-$ cd path/to/repo
-
-# 修改 abconfig 文件，去掉 main.py 前边的'井号'并保存文件
-$ ab # 上传所有源文件
-```
-
-之后重启设备即可
 
 前往观看 [设备使用演示](https://www.bilibili.com/video/BV1jQ4y1v7Wq/)
 
-#### 屏幕测试方法
+### 硬件测试
 
-没有安装最上边的透光板可以使用`TEST`键切换测试效果，如果不方便使用按键测试，可以使用如下方法：
+运行项目中的`hardware_test.py`即可同时测试`Led`、`按键`和`光敏电阻`
 
 ```bash
 $ cd path/to/repo
 $ ab --repl
 
-# 使用快捷键 Ctrl+R 选择 test\matrix_test.py 文件
->>> test_index=1
->>> test_index=2
->>> test_index=3
->>> test_index=4
->>> test_index=5
->>> test_index=6
+# 使用快捷键 Ctrl+R 选择 hardware_test.py 并回车
 ```
 
 ### 计划增加的功能
 
 * [x] 目前配网时没有任何提示信息，准备增加一个提示画面（或动画）
-
 * [ ] 计划中还有一个模式切换功能，无非就是手电或者各种乱闪
-
 * [x] 还可以增加一个整点提醒功能
+* [ ] 增加蓝牙配网功能
+* [ ] 增加台历功能
 
 ### 存在的问题
 
@@ -162,6 +152,9 @@ $ ab --repl
 ### 相关项目
 
 * [MicroPython WS2812 Research](https://gitee.com/walkline/micropython-ws2812-research)
+* [MicroPython SmartConfig CModule
+](https://gitee.com/walkline/micropython-smartconfig-cmodule)
+* [MicroPython BLE 配网](https://gitee.com/walkline/micropython_ble_config)
 
 ### 合作交流
 
