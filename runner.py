@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1.1'
-__version_info__ = (0, 1, 1)
+__version__ = '0.1.2'
+__version_info__ = (0, 1, 2)
 print('module runner version:', __version__)
 
 
@@ -80,13 +80,16 @@ class Runner(object):
 		print(f'Key {CONFIG.KEYS.KEY_MAP[pin]} pressed {time} ms')
 
 		if pin == CONFIG.KEYS.KEY_1:
-			WifiHandler.delete_sta_config_file()
+			try:
+				__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
+				WifiHandler.delete_sta_config_file()
+			except ImportError:
+				if WifiHandler.is_ble_mode():
+					WifiHandler.output_wifi_mode_file()
+				else:
+					WifiHandler.delete_wifi_mode_file()
 
-			if WifiHandler.is_ble_mode():
-				WifiHandler.output_wifi_mode_file()
-			else:
-				WifiHandler.delete_wifi_mode_file()
-
+			self.__clock.stop()
 			Utilities.hard_reset()
 		elif pin == CONFIG.KEYS.KEY_2:
 			if self.__clock.__last_menu == MatrixClock.MODE_UPDATE:

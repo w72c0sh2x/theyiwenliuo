@@ -166,36 +166,40 @@ essid = '{essid}'
 password = '{password}'
 '''
 			)
-	
+
 	@staticmethod
-	def delete_sta_config_file():
+	def __delete_file(filename):
 		import os
 		try:
-			os.remove(WifiHandler.STA_CONFIG_FILENAME)
+			os.remove(filename)
 		except:
 			pass
+
+	@staticmethod
+	def __is_file_exist(filename):
+		import os
+		try:
+			os.stat(filename)
+			return True
+		except:
+			return False
+
+	@staticmethod
+	def delete_sta_config_file():
+		WifiHandler.__delete_file(WifiHandler.STA_CONFIG_FILENAME)
 
 	@staticmethod
 	def output_wifi_mode_file():
-		with open(WifiHandler.WIFI_CONFIG_MODE_FILENAME, 'w') as file:
-			file.write('# enter smartconfig mode if this file exists')
+		with open(WifiHandler.WIFI_CONFIG_MODE_FILENAME, 'w') as output:
+			output.write('# enter smartconfig mode if this file exists')
 
 	@staticmethod
 	def delete_wifi_mode_file():
-		import os
-		try:
-			os.remove(WifiHandler.WIFI_CONFIG_MODE_FILENAME)
-		except:
-			pass
+		WifiHandler.__delete_file(WifiHandler.WIFI_CONFIG_MODE_FILENAME)
 
 	@staticmethod
 	def is_ble_mode():
-		import os
-		try:
-			os.stat(WifiHandler.WIFI_CONFIG_MODE_FILENAME)
-			return False
-		except:
-			return True
+		return False if WifiHandler.__is_file_exist(WifiHandler.WIFI_CONFIG_MODE_FILENAME) else True
 
 	@staticmethod
 	def hard_reset():
