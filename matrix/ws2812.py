@@ -118,7 +118,7 @@ if __name__ == '__main__':
 	DARKGRAY = (54, 54, 54)
 	COLORS = (SKYBLUE, LIGHTGREEN, BLUE, GREEN_MEDIUM, DARKGRAY)
 
-	ws2812 = WS2812(9, 6)
+	ws2812 = WS2812(9, 6, CONFIG.PINS.DIN_MATRIX)
 
 	for _ in range(10):
 		color = choice(COLORS)
