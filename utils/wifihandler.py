@@ -4,15 +4,9 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 import network
 import socket
-import utime
-import ntptime
+from utime import sleep_ms
 import smartconfig
-from machine import RTC, reset
 
-TIMEZONE = 8
-ntptime.host = 'ntp.ntsc.ac.cn'
-# ntptime.NTP_DELTA -= TIMEZONE * 60 * 60
-# ntptime.host = 'ntp1.aliyun.com'
 
 __station_status_message = {
 	network.STAT_IDLE: "network idle",
@@ -27,12 +21,9 @@ __station_status_message = {
 
 
 class WifiHandler(object):
-	AP_MODE = 0
-	STA_MODE = 1
 	STATION_CONNECTED = network.STAT_GOT_IP
 	STA_CONFIG_FILENAME = 'sta_config.py'
 	STA_CONFIG_IMPORT_NAME = STA_CONFIG_FILENAME.split('.')[0]
-	INTERVAL_FROM_1970_TO_2000 = 946_656_000 # in second
 
 	@staticmethod
 	def set_sta_status(active:bool):
@@ -40,8 +31,19 @@ class WifiHandler(object):
 		station.active(active)
 
 	@staticmethod
+	def is_sta_connected():
+		station = network.WLAN(network.STA_IF)
+
+		return station.isconnected()
+
+	@staticmethod
+	def get_mac_address():
+		station = network.WLAN(network.STA_IF)
+		return station.config('mac')
+
+	@staticmethod
 	def set_sta_mode(essid=None, password='', timeout_sec=600):
-		utime.sleep_ms(1000)
+		sleep_ms(1000)
 		station = network.WLAN(network.STA_IF)
 		station.active(False)
 		station.active(True)
@@ -61,7 +63,7 @@ class WifiHandler(object):
 					smartconfig.start()
 
 					while not smartconfig.success():
-						utime.sleep_ms(500)
+						sleep_ms(500)
 
 					essid, password, sc_type, token = smartconfig.info()
 					using_smartconfig = True
@@ -87,7 +89,7 @@ class WifiHandler(object):
 					pass
 
 				retry_count += 1
-				utime.sleep_ms(500)
+				sleep_ms(500)
 
 		status_code = station.status()
 
@@ -100,39 +102,7 @@ class WifiHandler(object):
 
 		return status_code
 
-	@staticmethod
-	def sync_time(retry=5):
-		if WifiHandler.is_sta_connected():
-			print('sync time')
-
-			for _ in range(retry):
-				try:
-					ntptime.settime()
-					time = utime.localtime()
-					RTC().datetime((time[0], time[1], time[2], time[6] + 1, time[3] + TIMEZONE, time[4], time[5], 0))
-					time = utime.localtime()
-					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
-					return
-				except OSError as ose:
-					if str(ose) == '[Errno 116] ETIMEDOUT':
-						pass
-					else:
-						print(ose)
-				except Exception as e:
-					print(e)
-
-				utime.sleep(0.2)
-
-			if utime.time() < 60 * 60 * 2:
-				# first time sync time failed, reset
-				reset()
-			else:
-				print(f'Cannot reach ntp host: {ntptime.host}, sync time failed')
-				time = utime.localtime()
-				print(f'RTC: {time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
-		else:
-			print('No wifi connected, sync time cancelled')
-
+#region SmartConfig related functions
 	@staticmethod
 	def __send_smartconfig_ack(local_ip):
 		udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -146,18 +116,12 @@ class WifiHandler(object):
 			port = 18266
 
 		for _ in range(30):
-			utime.sleep_ms(100)
+			sleep_ms(100)
 			try:
 				udp.sendto(token, ('255.255.255.255', port))
 			except OSError:
 				pass
 		print('ack was sent')
-
-	@staticmethod
-	def is_sta_connected():
-		station = network.WLAN(network.STA_IF)
-
-		return station.isconnected()
 
 	@staticmethod
 	def inet_pton(ip_str:str):
@@ -173,11 +137,6 @@ class WifiHandler(object):
 		return result
 
 	@staticmethod
-	def get_mac_address():
-		station = network.WLAN(network.STA_IF)
-		return station.config('mac')
-
-	@staticmethod
 	def output_sta_config_file(essid, password):
 		with open(WifiHandler.STA_CONFIG_FILENAME, 'w') as output:
 			output.write(
@@ -186,8 +145,12 @@ essid = '{essid}'
 password = '{password}'
 '''
 			)
-
-
-if __name__ == '__main__':
-	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
-		WifiHandler.sync_time()
+	
+	@staticmethod
+	def delete_sta_config_file():
+		import os
+		try:
+			os.remove(WifiHandler.STA_CONFIG_FILENAME)
+		except:
+			pass
+#endregion
