@@ -7,8 +7,8 @@ import ntptime
 import network
 from machine import RTC
 
-# ntptime.host = 'ntp1.aliyun.com'
-ntptime.host = 'ntp.ntsc.ac.cn'
+ntptime.host = 'ntp1.aliyun.com'
+# ntptime.host = 'ntp.ntsc.ac.cn'
 ntptime.timeout = 2
 
 
@@ -43,7 +43,7 @@ class Utilities(object):
 				try:
 					ntptime.settime()
 					time = utime.localtime() # (year, month, mday, hour, minute, second, weekday, yearday)
-					RTC().datetime((time[0], time[1], time[2], time[6] + 1, time[3] + TIMEZONE, time[4], time[5], 0))
+					RTC().datetime((time[0], time[1], time[2], time[6], time[3] + TIMEZONE, time[4], time[5], 0))
 					time = utime.localtime()
 					print(f'- success: {time[0]}-{time[1]:02d}-{time[2]:02d} {time[3]:02d}:{time[4]:02d}:{time[5]:02d}')
 					return True
