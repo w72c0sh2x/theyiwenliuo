@@ -281,7 +281,7 @@ class MatrixClock(WS2812, DateTime):
 		self.__task_show_animation   = lambda: self.__show_animation_cb()
 		self.__task_switch_display   = lambda: self.__switch_display_cb()
 
-		self.switch_mode(self.mode)
+		self.switch_working_mode(self.mode)
 		self.__start_auto_brightness()
 
 	def start(self):
@@ -306,35 +306,6 @@ class MatrixClock(WS2812, DateTime):
 		self.__tasks.del_works()
 		self.clean()
 
-	def start_stop_menu(self, save:bool=True):
-		'''进入/退出菜单模式'''
-		if self.__menu_mode:
-			if save and\
-			   self.mode != self.__last_menu and\
-			   self.__last_menu in MatrixClock.MODE_LIST.keys():
-				self.switch_mode(self.__last_menu)
-				self.__output_matrix_mode_file()
-
-			self.__menu_mode = False
-			self.stop()
-			self.start()
-		else:
-			self.__menu_mode = True
-			self.__last_menu = self.mode
-			self.stop()
-			self.switch_menu(True)
-
-	def start_update(self):
-		self.__animation.select_animation(
-			Animation.UPDATING,
-			self.convert_color(CONFIG.COLORS.SKYBLUE)
-		)
-
-		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
-
-		updater = OnlineUpdater(self.__online_update_cb)
-		updater.check()
-
 	def show_content(self):
 		'''显示当前工作模式下需要展示的内容'''
 		if not self.__powered_on or not self.__started:
@@ -350,12 +321,12 @@ class MatrixClock(WS2812, DateTime):
 			self.show_calendar_2()
 
 	def switch_power(self):
-		'''开启/关闭内容显示'''
+		'''开启/关闭屏幕显示'''
 		self.__powered_on = not self.__powered_on
 
 		self.show_content() if self.__powered_on else self.clean()
 
-	def switch_mode(self, mode):
+	def switch_working_mode(self, mode):
 		'''切换工作模式，切换后需要手动调用 start() 函数'''
 		self.mode = mode
 		suffix = f' for {self.format_ms(CONFIG.PERIOD.SWITCH_DISPLAY_MS)}' if self.mode != self.__display_mode else ''
@@ -376,63 +347,53 @@ class MatrixClock(WS2812, DateTime):
 
 		gc.collect()
 
+	def switch_display_mode(self):
+		'''临时切换显示时钟和台历1'''
+		self.__switch_display_cb()
+
+
+	def show_hide_menu(self, save:bool=True):
+		'''进入/退出菜单模式'''
+		if self.__menu_mode:
+			if save and\
+			   self.mode != self.__last_menu and\
+			   self.__last_menu in MatrixClock.MODE_LIST.keys():
+				self.switch_working_mode(self.__last_menu)
+				self.__output_matrix_mode_file()
+
+			self.__menu_mode = False
+			self.stop()
+			self.start()
+		else:
+			self.__menu_mode = True
+			self.__last_menu = self.mode
+			self.stop()
+			self.switch_menu(True)
+
 	def switch_menu(self, first=False):
-		'''切换显示菜单'''
+		'''切换菜单显示内容'''
 		if not self.__menu_mode:
 			return
 
 		if not first:
 			self.__last_menu = (self.__last_menu + 1) % len(MatrixClock.MENU_LIST)
 
+		# 未启用 OnlineUpdater 模块时跳过在线更新菜单项
 		if not ONLINE_UPDATE_ENABLED and self.__last_menu == MatrixClock.MODE_UPDATE:
 			self.__last_menu = (self.__last_menu + 1) % len(MatrixClock.MENU_LIST)
 
-		self.__animation.select_animation(
-			MatrixClock.MENU_LIST[self.__last_menu],
-			self.convert_color(CONFIG.COLORS.SKYBLUE)
-		)
+		self.__show_animation(MatrixClock.MENU_LIST[self.__last_menu], self.convert_color(CONFIG.COLORS.SKYBLUE))
 
-		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
-
-	def switch_display_mode(self):
-		'''临时切换显示时钟和台历1'''
-		self.__switch_display_cb()
 
 	def sync_time(self):
 		self.__sync_time_cb()
 
-	def show_animation(self):
-		'''播放配网/联网简易动画'''
-		animation = None
-		colors = None
+	def check_update(self):
+		self.__show_animation(Animation.UPDATING, self.convert_color(CONFIG.COLORS.SKYBLUE))
 
-		try:
-			__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
+		updater = OnlineUpdater(self.__online_update_cb)
+		updater.check()
 
-			animation = Animation.CONNECT_WIFI
-			colors = self.convert_color(CONFIG.COLORS.WHITE)
-		except ImportError:
-			animation = Animation.CONFIG_WIFI
-
-			if WifiHandler.is_ble_mode():
-				colors = (
-					self.convert_color(CONFIG.COLORS.BLACK),
-					self.convert_color(CONFIG.COLORS.SKYBLUE)
-				)
-			else:
-				colors = (
-					self.convert_color(CONFIG.COLORS.BLACK),
-					self.convert_color(CONFIG.COLORS.LIGHTGREEN)
-				)
-
-		self.__animation.select_animation(animation, colors)
-		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
-
-	def show_animation_async(self):
-		'''异步播放简易动画'''
-		for _ in range(len(self.__animation.__frames)):
-			self.__show_animation_cb()
-			utime.sleep_ms(self.__animation.period)
 
 	def show_blink(self):
 		'''用于整点报时的闪烁'''
@@ -454,6 +415,60 @@ class MatrixClock(WS2812, DateTime):
 		self.clean()
 
 		self.show_content()
+
+	def show_connecting_animation(self):
+		'''播放配网/联网简易动画'''
+		animation = None
+		colors    = None
+
+		try:
+			__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
+
+			animation = Animation.CONNECT_WIFI
+			colors    = self.convert_color(CONFIG.COLORS.WHITE)
+		except ImportError:
+			animation = Animation.CONFIG_WIFI
+
+			if WifiHandler.is_ble_mode():
+				colors = (
+					self.convert_color(CONFIG.COLORS.BLACK),
+					self.convert_color(CONFIG.COLORS.SKYBLUE)
+				)
+			else:
+				colors = (
+					self.convert_color(CONFIG.COLORS.BLACK),
+					self.convert_color(CONFIG.COLORS.LIGHTGREEN)
+				)
+
+		self.__show_animation(animation, colors)
+
+
+	def __show_animation(self, animation:int, colors:tuple):
+		'''同步播放简易动画'''
+
+		if animation not in Animation.ANIMATION_LIST:
+			return
+
+		if not isinstance(colors, (tuple, list)):
+			return
+
+		self.__animation.select_animation(animation, colors)
+		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
+
+	def __show_animation_async(self, animation:int, colors:tuple):
+		'''异步播放简易动画'''
+		if animation not in Animation.ANIMATION_LIST:
+			return
+
+		if not isinstance(colors, (tuple, list)):
+			return
+
+		self.__animation.select_animation(animation, colors)
+
+		for _ in range(len(self.__animation.__frames)):
+			self.__show_animation_cb()
+			utime.sleep_ms(self.__animation.period)
+
 
 	#region model clock related function
 	def show_time(self):
@@ -655,9 +670,9 @@ class MatrixClock(WS2812, DateTime):
 			return
 
 		if self.mode == MatrixClock.MODE_CLOCK:
-			self.switch_mode(MatrixClock.MODE_CALENDAR_1)
+			self.switch_working_mode(MatrixClock.MODE_CALENDAR_1)
 		elif self.mode == MatrixClock.MODE_CALENDAR_1:
-			self.switch_mode(MatrixClock.MODE_CLOCK)
+			self.switch_working_mode(MatrixClock.MODE_CLOCK)
 
 		self.start()
 
@@ -671,32 +686,35 @@ class MatrixClock(WS2812, DateTime):
 
 		self.__tasks.del_work(self.__task_show_animation)
 
-		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS:
-			self.__animation.select_animation(
-				Animation.SUCCESS,
-				self.convert_color(CONFIG.COLORS.LIGHTGREEN)
-			)
-		elif result in (OnlineUpdater.ERROR_UPDATE_FAILED, OnlineUpdater.ERROR_NO_INTERNET, OnlineUpdater.ERROR_NO_CONFIG_FILE):
-			self.__animation.select_animation(
-				Animation.FAILED,
-				self.convert_color(CONFIG.COLORS.RED)
-			)
+		animation = None
+		colors    = None
 
-		self.show_animation_async()
+		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS:
+			animation = Animation.SUCCESS
+			colors    = self.convert_color(CONFIG.COLORS.LIGHTGREEN)
+		elif result in (OnlineUpdater.ERROR_UPDATE_FAILED, OnlineUpdater.ERROR_NO_INTERNET, OnlineUpdater.ERROR_NO_CONFIG_FILE):
+			animation = Animation.FAILED
+			colors    = self.convert_color(CONFIG.COLORS.RED)
+
+		self.__show_animation_async(animation, colors)
 
 		if result in (OnlineUpdater.ERROR_NO_INTERNET, OnlineUpdater.ERROR_NO_CONFIG_FILE) or\
 			(result == OnlineUpdater.ERROR_UPDATE_SUCCESS and not files):
-			self.start_stop_menu()
+			self.show_hide_menu()
 			return
 		elif result == OnlineUpdater.ERROR_UPDATE_FAILED:
 			self.switch_menu(True)
 
-		if files:
-			for file in files.values():
-				if file['result'] == OnlineUpdater.ERROR_DOWNLOAD_SUCCESS:
+		#region debug log
+		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS:
+			if files:
+				for file in files.values():
 					print(f'    [{file["full_path"]}] up to date from {file["local_version"]} to {file["version"]}')
-				elif file['result'] in (OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED, OnlineUpdater.ERROR_DOWNLOAD_FAILED):
+		elif result == OnlineUpdater.ERROR_UPDATE_FAILED:
+			if files:
+				for file in files.values():
 					print(f'    [{file["full_path"]}] {file["message"]}')
+		#endregion
 
 		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS and files:
 			print('update completed, hard reset now...')
@@ -785,7 +803,7 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 
 if __name__ == '__main__':
 	matrix = MatrixClock()
-	matrix.show_animation()
+	matrix.show_connecting_animation()
 
 	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode():
 		matrix.stop()
