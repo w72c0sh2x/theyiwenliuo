@@ -48,7 +48,7 @@ class Utilities(object):
 					print(f'- success: {time[0]}-{time[1]:02d}-{time[2]:02d} {time[3]:02d}:{time[4]:02d}:{time[5]:02d}')
 					return True
 				except OSError as ose:
-					if str(ose) == '[Errno 116] ETIMEDOUT':
+					if str(ose) in ('[Errno 116] ETIMEDOUT', '-202'):
 						pass
 					else:
 						print(ose)
