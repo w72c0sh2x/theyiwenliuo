@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-online-updater
 """
-__version__ = '0.2.2'
-__version_info__ = (0, 2, 2)
+__version__ = '0.2.3'
+__version_info__ = (0, 2, 3)
 print('module update version:', __version__)
 
 
@@ -11,14 +11,17 @@ import os
 import gc
 import mip
 import network
-from machine import reset
 
 
-UPDATE_PATH = '/update'
+gc.collect()
+
+UPDATE_PATH = 'updating'
 UPDATE_CONFIG_FILE = 'ota_config.py'
+
+# user define variable
 URL_PREFIX = 'https://gitee.com/walkline/micropython-ws2812-led-clock/raw/master'
 
-UPDATE_CONFIG_URL = f'{URL_PREFIX}{UPDATE_PATH}/{UPDATE_CONFIG_FILE}'
+UPDATE_CONFIG_URL = f'{URL_PREFIX}/{UPDATE_PATH}/{UPDATE_CONFIG_FILE}'
 IMPORT_CONFIG_FILE = f'{UPDATE_PATH}/{UPDATE_CONFIG_FILE.replace(".py", "")}'
 
 
@@ -103,6 +106,8 @@ class OnlineUpdater(FileUtilities):
 		'''
 		检查服务器更新文件并自动完成更新
 		'''
+		print('start checking update files...')
+
 		if not network.WLAN(network.STA_IF).isconnected():
 			print('no internet connection, update terminated!')
 
@@ -130,13 +135,13 @@ class OnlineUpdater(FileUtilities):
 		downloading_file_list = self.__download_updating_files(updating_file_list, retry)
 		del updating_file_list
 
-		update_success = True
+		update_successed = True
 		for file in downloading_file_list.values():
 			if file['result'] != OnlineUpdater.ERROR_DOWNLOAD_SUCCESS:
-				update_success = False
+				update_successed = False
 				break
 
-		if update_success:
+		if update_successed:
 			for file in downloading_file_list.values():
 				self.mkdirs(file['path'])
 				self.move(file['temp_file'], file['full_path'])
@@ -144,7 +149,7 @@ class OnlineUpdater(FileUtilities):
 				file.pop('temp_file')
 
 			if self.__result_cb is not None:
-				self.__result_cb(OnlineUpdater.ERROR_UPDATE_SUCCESS, 'update success', downloading_file_list)
+				self.__result_cb(OnlineUpdater.ERROR_UPDATE_SUCCESS, 'update successed', downloading_file_list)
 		else:
 			for file in downloading_file_list.values():
 				file.pop('url')
@@ -162,7 +167,12 @@ class OnlineUpdater(FileUtilities):
 		result = {}
 
 		self.remove(f'{UPDATE_PATH}/{UPDATE_CONFIG_FILE}')
-		mip.install(UPDATE_CONFIG_URL, target=UPDATE_PATH)
+
+		try:
+			mip.install(UPDATE_CONFIG_URL, target=UPDATE_PATH)
+		except OSError as ose:
+			if str(ose) == '-202':
+				pass
 
 		if self.exist(f'{IMPORT_CONFIG_FILE}.py'):
 			import_file = __import__(IMPORT_CONFIG_FILE)
@@ -176,10 +186,12 @@ class OnlineUpdater(FileUtilities):
 		'''
 		分析可更新文件列表，获取需要的文件信息
 		'''
+		print('analysing update files')
+
 		result = {}
 
 		for key, file in files.items():
-			full_path = f'{file["path"]}/{file["filename"]}'.replace('//', '/')
+			full_path = f'{file["path"]}/{file["filename"]}'.lstrip('./')
 			version = self.__get_file_version_info(full_path)
 
 			if version is None or file['version'] > version:
@@ -197,19 +209,24 @@ class OnlineUpdater(FileUtilities):
 
 		for key, file in files.items():
 			for count in range(1, retry + 1):
-				print(f'- try to download file {file["filename"]} ({count}/{retry})')
-				mip.install(file['url'], target=f'{UPDATE_PATH}{file["path"]}')
+				print(f'- try to download file [{file["full_path"]}] ({count}/{retry})')
 
-				temp_file = f'{UPDATE_PATH}{file["path"]}/{file["filename"]}'.replace('//', '/')
+				try:
+					mip.install(file['url'], target=f'{UPDATE_PATH}/{file["path"]}'.rstrip('/'))
+				except OSError as ose:
+					if str(ose) == '-202':
+						pass
+
+				temp_file = f'{UPDATE_PATH}/{file["full_path"]}'
 
 				if self.exist(temp_file):
 					if os.stat(temp_file)[6] == file['size']:
 						file['result']    = OnlineUpdater.ERROR_DOWNLOAD_SUCCESS
-						file['message']   = 'download success'
+						file['message']   = 'download successed'
 						file['temp_file'] = temp_file
 
 						result[key] = file.copy()
-						print(f'[{temp_file}] download success!')
+						print(f'[{temp_file}] download successed!')
 						break
 					else:
 						file['result']  = OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED
@@ -232,7 +249,7 @@ class OnlineUpdater(FileUtilities):
 		result = None
 
 		if self.exist(filename):
-			import_file = __import__(f'.{filename.replace(".mpy", "")}')
+			import_file = __import__(f'{filename.replace(".mpy", "")}')
 
 			if hasattr(import_file, '__version_info__'):
 				result = import_file.__version_info__
@@ -241,7 +258,7 @@ class OnlineUpdater(FileUtilities):
 				print(f'[{filename}] local existed, has no version info')
 		else:
 			try:
-				import_file = __import__(f'.frozen/{filename.replace(".mpy", "")}'.replace('//', '/'))
+				import_file = __import__(f'.frozen/{filename.replace(".mpy", "")}')
 
 				if hasattr(import_file, '__version_info__'):
 					result = import_file.__version_info__
@@ -257,7 +274,7 @@ class OnlineUpdater(FileUtilities):
 
 if __name__ == '__main__':
 	def update_callback(result:int, msg:str, files:dict):
-		print(f'- update result: {msg}')
+		print(f'- online updating result: {msg}')
 
 		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS:
 			if files:
@@ -270,6 +287,8 @@ if __name__ == '__main__':
 
 		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS and files:
 			print('update completed, hard reset now...')
+
+			# from machine import reset
 			# network.WLAN(network.STA_IF).active(False)
 			# reset()
 
