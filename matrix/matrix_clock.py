@@ -26,6 +26,18 @@ try:
 	from utils.dispatcher import Dispatcher
 except ImportError:
 	from dispatcher import Dispatcher
+
+gc.collect()
+
+ONLINE_UPDATE_ENABLED = True
+
+try:
+	OnlineUpdater = __import__('./utils/update').OnlineUpdater
+except ImportError:
+	try:
+		from utils.update import OnlineUpdater
+	except ImportError:
+		ONLINE_UPDATE_ENABLED = False
 #endregion import modules
 
 
@@ -204,6 +216,7 @@ class MatrixClock(WS2812, DateTime):
 	MODE_CLOCK      = 0 # 时钟模式
 	MODE_CALENDAR_1 = 1 # 台历模式1，数显日期
 	MODE_CALENDAR_2 = 2 # 台历模式2，单独显示日期，需要额外的面板
+	MODE_UPDATE     = 3 # 在线更新模式
 
 	MODE_LIST = {
 		MODE_CLOCK     : 'clock',
@@ -214,7 +227,8 @@ class MatrixClock(WS2812, DateTime):
 	MENU_LIST = {
 		MODE_CLOCK     : Animation.MENU_CLOCK,
 		MODE_CALENDAR_1: Animation.MENU_CALENDAR_1,
-		MODE_CALENDAR_2: Animation.MENU_CALENDAR_2
+		MODE_CALENDAR_2: Animation.MENU_CALENDAR_2,
+		MODE_UPDATE    : Animation.MENU_UPDATE
 	}
 
 	BRIGHTNESS_LEVEL = {
@@ -268,19 +282,15 @@ class MatrixClock(WS2812, DateTime):
 		self.__task_switch_display   = lambda: self.__switch_display_cb()
 
 		self.switch_mode(self.mode)
-
-		self.__auto_brightness_cb()
-		self.__tasks.add_work(self.__task_auto_brightness, CONFIG.PERIOD.UPDATE_ADC_MS)
+		self.__start_auto_brightness()
 
 	def start(self):
 		print(f'starting {MatrixClock.MODE_LIST[self.mode]} mode')
 
 		if not self.__time_synced:
-			self.__sync_time_cb()
+			self.sync_time()
 
-		self.__auto_brightness_cb()
-		self.__tasks.add_work(self.__task_auto_brightness, CONFIG.PERIOD.UPDATE_ADC_MS)
-
+		self.__start_auto_brightness()
 		self.__started = True
 
 		if self.mode == MatrixClock.MODE_CLOCK:
@@ -299,7 +309,9 @@ class MatrixClock(WS2812, DateTime):
 	def start_stop_menu(self, save:bool=True):
 		'''进入/退出菜单模式'''
 		if self.__menu_mode:
-			if save and self.mode != self.__last_menu:
+			if save and\
+			   self.mode != self.__last_menu and\
+			   self.__last_menu in MatrixClock.MODE_LIST.keys():
 				self.switch_mode(self.__last_menu)
 				self.__output_matrix_mode_file()
 
@@ -308,8 +320,20 @@ class MatrixClock(WS2812, DateTime):
 			self.start()
 		else:
 			self.__menu_mode = True
+			self.__last_menu = self.mode
 			self.stop()
 			self.switch_menu(True)
+
+	def start_update(self):
+		self.__animation.select_animation(
+			Animation.UPDATING,
+			self.convert_color(CONFIG.COLORS.SKYBLUE)
+		)
+
+		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
+
+		updater = OnlineUpdater(self.__online_update_cb)
+		updater.check()
 
 	def show_content(self):
 		'''显示当前工作模式下需要展示的内容'''
@@ -360,6 +384,9 @@ class MatrixClock(WS2812, DateTime):
 		if not first:
 			self.__last_menu = (self.__last_menu + 1) % len(MatrixClock.MENU_LIST)
 
+		if not ONLINE_UPDATE_ENABLED and self.__last_menu == MatrixClock.MODE_UPDATE:
+			self.__last_menu = (self.__last_menu + 1) % len(MatrixClock.MENU_LIST)
+
 		self.__animation.select_animation(
 			MatrixClock.MENU_LIST[self.__last_menu],
 			self.convert_color(CONFIG.COLORS.SKYBLUE)
@@ -370,6 +397,9 @@ class MatrixClock(WS2812, DateTime):
 	def switch_display_mode(self):
 		'''临时切换显示时钟和台历1'''
 		self.__switch_display_cb()
+
+	def sync_time(self):
+		self.__sync_time_cb()
 
 	def show_animation(self):
 		'''播放配网/联网简易动画'''
@@ -397,6 +427,12 @@ class MatrixClock(WS2812, DateTime):
 
 		self.__animation.select_animation(animation, colors)
 		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
+
+	def show_animation_async(self):
+		'''异步播放简易动画'''
+		for _ in range(len(self.__animation.__frames)):
+			self.__show_animation_cb()
+			utime.sleep_ms(self.__animation.period)
 
 	def show_blink(self):
 		'''用于整点报时的闪烁'''
@@ -629,6 +665,43 @@ class MatrixClock(WS2812, DateTime):
 			self.__tasks.del_work(self.__task_switch_display)
 		else:
 			self.__tasks.add_work(self.__task_switch_display, CONFIG.PERIOD.SWITCH_DISPLAY_MS)
+
+	def __online_update_cb(self, result:int, msg:str, files:dict):
+		print(f'- update result: {msg}')
+
+		self.__tasks.del_work(self.__task_show_animation)
+
+		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS:
+			self.__animation.select_animation(
+				Animation.SUCCESS,
+				self.convert_color(CONFIG.COLORS.LIGHTGREEN)
+			)
+		elif result in (OnlineUpdater.ERROR_UPDATE_FAILED, OnlineUpdater.ERROR_NO_INTERNET, OnlineUpdater.ERROR_NO_CONFIG_FILE):
+			self.__animation.select_animation(
+				Animation.FAILED,
+				self.convert_color(CONFIG.COLORS.RED)
+			)
+
+		self.show_animation_async()
+
+		if result in (OnlineUpdater.ERROR_NO_INTERNET, OnlineUpdater.ERROR_NO_CONFIG_FILE) or\
+			(result == OnlineUpdater.ERROR_UPDATE_SUCCESS and not files):
+			self.start_stop_menu()
+			return
+		elif result == OnlineUpdater.ERROR_UPDATE_FAILED:
+			self.switch_menu(True)
+
+		if files:
+			for file in files.values():
+				if file['result'] == OnlineUpdater.ERROR_DOWNLOAD_SUCCESS:
+					print(f'    [{file["full_path"]}] up to date from {file["local_version"]} to {file["version"]}')
+				elif file['result'] in (OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED, OnlineUpdater.ERROR_DOWNLOAD_FAILED):
+					print(f'    [{file["full_path"]}] {file["message"]}')
+
+		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS and files:
+			print('update completed, hard reset now...')
+			WifiHandler.set_sta_status(False)
+			Utilities.hard_reset()
 	#endregion callbacks function
 
 
@@ -646,6 +719,7 @@ class MatrixClock(WS2812, DateTime):
 		return f'{value:0>54b}'
 
 	def __output_matrix_mode_file(self):
+		'''输出工作状态配置文件'''
 		with open(MatrixClock.MATRIX_MODE_FILENAME, 'w') as output:
 			output.write(
 f'''# automatic generated file
@@ -654,14 +728,23 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 			)
 
 	def __get_matrix_mode(self) -> int:
+		'''从配置文件中读取工作状态'''
 		mode = MatrixClock.MODE_CLOCK
 
 		try:
 			mode = __import__(MatrixClock.MATRIX_MODE_IMPORT_NAME).mode
+
+			if mode not in MatrixClock.MODE_LIST.keys():
+				mode = MatrixClock.MODE_CLOCK
 		except ImportError:
 			pass
 
 		return mode
+
+	def __start_auto_brightness(self):
+		'''启动自动亮度任务回调'''
+		self.__auto_brightness_cb()
+		self.__tasks.add_work(self.__task_auto_brightness, CONFIG.PERIOD.UPDATE_ADC_MS)
 
 	def set_time(self, minute, second=0):
 		# year, month, day, hour, minute, second, weekday, yearday
