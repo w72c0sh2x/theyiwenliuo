@@ -1,5 +1,5 @@
 """
-Copyright © 2021 Walkline Wang (https://walkline.wang)
+Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 import network
@@ -22,6 +22,7 @@ __station_status_message = {
 
 class WifiHandler(object):
 	STATION_CONNECTED = network.STAT_GOT_IP
+	WIFI_CONFIG_MODE_FILENAME = 'smart.config'
 	STA_CONFIG_FILENAME = 'sta_config.py'
 	STA_CONFIG_IMPORT_NAME = STA_CONFIG_FILENAME.split('.')[0]
 
@@ -53,22 +54,42 @@ class WifiHandler(object):
 		print("\nConnecting to network...")
 
 		if not station.isconnected():
-			if not essid:
+			if essid is None:
 				try:
 					sta_config = __import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
 					essid = sta_config.essid
 					password = sta_config.password
 				except ImportError:
-					print('Start smartconfig...')
-					smartconfig.start()
+					if WifiHandler.is_ble_mode():
+						try:
+							BLEConfig = __import__('./utils/ble_config').BLEConfig
+						except ImportError:
+							from utils.ble_config import BLEConfig
 
-					while not smartconfig.success():
-						sleep_ms(500)
+						print('Start bleconfig...')
+						bleconfig = BLEConfig()
 
-					essid, password, sc_type, token = smartconfig.info()
-					using_smartconfig = True
+						while not bleconfig.success():
+							sleep_ms(100)
 
-					print(f'-- Got info\n    ssid={essid}\n    password={password}\n    type={sc_type}\n    token={token}')
+						essid = bleconfig.ssid
+						password = bleconfig.password
+
+						print(f'-- Got info\n    ssid={essid}\n    password={password}')
+
+						WifiHandler.output_sta_config_file(essid, password)
+						WifiHandler.hard_reset()
+					else:
+						print('Start smartconfig...')
+						smartconfig.start()
+
+						while not smartconfig.success():
+							sleep_ms(100)
+
+						essid, password, sc_type, token = smartconfig.info()
+						using_smartconfig = True
+
+						print(f'-- Got info\n    ssid={essid}\n    password={password}\n    type={sc_type}\n    token={token}')
 
 			station.connect(essid, password)
 
@@ -153,4 +174,31 @@ password = '{password}'
 			os.remove(WifiHandler.STA_CONFIG_FILENAME)
 		except:
 			pass
+
+	@staticmethod
+	def output_wifi_mode_file():
+		with open(WifiHandler.WIFI_CONFIG_MODE_FILENAME, 'w') as file:
+			file.write('# enter smartconfig mode if this file exists')
+
+	@staticmethod
+	def delete_wifi_mode_file():
+		import os
+		try:
+			os.remove(WifiHandler.WIFI_CONFIG_MODE_FILENAME)
+		except:
+			pass
+
+	@staticmethod
+	def is_ble_mode():
+		import os
+		try:
+			os.stat(WifiHandler.WIFI_CONFIG_MODE_FILENAME)
+			return False
+		except:
+			return True
+
+	@staticmethod
+	def hard_reset():
+		from machine import reset
+		reset()
 #endregion
