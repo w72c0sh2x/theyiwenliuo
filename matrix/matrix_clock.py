@@ -1,126 +1,348 @@
 """
-Copyright © 2021 Walkline Wang (https://walkline.wang)
+Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
+__version__ = '0.1'
+__version_info__ = (0, 1)
+print('module matrix_clock version:', __version__)
+
+
+#region import modules
 from machine import RTC
 import utime
+import gc
 
 try:
-	from .ws2812 import WS2812Matrix
+	from .ws2812 import WS2812
 except ImportError:
-	from matrix.ws2812 import WS2812Matrix
+	from matrix.ws2812 import WS2812
 
 from matrix.animation import Animation
 from drivers.photoresistor import Photoresistor
 from utils.wifihandler import WifiHandler
 from utils.utilities import Utilities
-Config = Utilities.import_config()
+
+try:
+	from utils.dispatcher import Dispatcher
+except ImportError:
+	from dispatcher import Dispatcher
+#endregion import modules
 
 
-class MatrixClock(WS2812Matrix):
-	MODE_TIME = 0
-	MODE_LIGHT = 1
-	MODE_BLINK = 2
-	MODE_LIST = ['time', 'light', 'blink']
+CONFIG = Utilities.import_config()
+
+
+class DateTime(object):
+	def __init__(self):
+		self.__year =\
+		self.__month =\
+		self.__day =\
+		self.__hour =\
+		self.__minute =\
+		self.__second =\
+		self.__weekday = None
+
+	def first_day_of_month(self) -> int:
+		'''获取当月第一天的星期数 (0~6)'''
+		self.now()
+		return utime.localtime(utime.mktime((self.__year, self.__month, 1, 0, 0, 0, 0, 0)))[6]
+
+	def milliseconds_until_next_minute(self) -> int:
+		'''获取到下一分钟之前的毫秒数'''
+		self.now()
+		return (utime.mktime((self.__year, self.__month, self.__day, self.__hour, self.__minute + 1, 0, 0, 0)) - utime.time()) * 1000
+
+	def milliseconds_until_next_hour(self) -> int:
+		'''获取到下一个整点之前的毫秒数'''
+		self.now()
+		return (utime.mktime((self.__year, self.__month, self.__day, self.__hour + 1, 0, 0, 0, 0)) - utime.time()) * 1000
+
+	def milliseconds_until_midnight(self) -> int:
+		'''获取到第二天零点之前的毫秒数'''
+		self.now()
+		return (utime.mktime((self.__year, self.__month, self.__day + 1, 0, 0, 0, 0, 0)) - utime.time()) * 1000
+
+	def is_leap_year(self) -> bool:
+		'''判断今年是否为闰年'''
+		self.now()
+		return (self.__year % 4 == 0 and self.__year % 100 != 0) or self.__year % 400 == 0
+
+	def format_ms(self, seconds) -> str:
+		'''将毫秒数转换为可读时间'''
+		seconds //= 1000
+		second = seconds % 60
+		minutes = (seconds - second) // 60
+		minute = minutes % 60
+		hour = (minutes - minute) // 60
+
+		return f'{hour:02d}:{minute:02d}:{second:02d}'
+
+	def now(self) -> None:
+		'''获取当前系统时间'''
+		self.__year,\
+		self.__month,\
+		self.__day,\
+		self.__hour,\
+		self.__minute,\
+		self.__second,\
+		self.__weekday,\
+		_ = utime.localtime() # (year, month, mday, hour, minute, second, weekday, yearday)
+
+	def __str__(self):
+		self.now()
+		weekday = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
+		return f'{self.__year}-{self.__month:02d}-{self.__day:02d} {self.__hour:02d}:{self.__minute:02d}:{self.__second:02d} ({weekday[self.__weekday]})'
+
+
+#region matrix model classes
+class ModelClock(object):
+	'''
+	时钟模式，分区显示当前时间的时、分信息
+	'''
+	# Led 点阵分区列表
+	HOUR_TENS_RANGE = (range(0, 5), range(6, 11), range(12, 17))
+	HOUR_ONES_RANGE = (range(24, 29), range(30, 35), range(36, 41))
+	MINUTE_TENS_RANGE = range(48, 53)
+	MINUTE_ONES_RANGE = (5, 11, 17, 23, 29, 35, 41, 47, 53)
+
+	# 字形列表
+	NUMBERS_GLYPH = {
+		'0': 0x7e3f, # '111111000111111'
+		'1': 0x27e1, # '010011111100001'
+		'2': 0x5ebd, # '101111010111101'
+		'3': 0x56bf, # '101011010111111'
+		'4': 0x709f, # '111000010011111'
+		'5': 0x76b7, # '111011010110111'
+		'6': 0x7eb7, # '111111010110111'
+		'7': 0x421f, # '100001000011111'
+		'8': 0x7ebf, # '111111010111111'
+		'9': 0x76bf, # '111011010111111'
+	}
+
+	def __init__(self):
+		self.hour_tens_list = []
+		self.hour_ones_list = []
+		self.minute_tens_list = list(ModelClock.MINUTE_TENS_RANGE)
+		self.minute_ones_list = list(ModelClock.MINUTE_ONES_RANGE)
+
+		self.__fill_range_list()
+
+	def __fill_range_list(self):
+		for _ in ModelClock.HOUR_TENS_RANGE:
+			self.hour_tens_list += list(_)
+		for _ in ModelClock.HOUR_ONES_RANGE:
+			self.hour_ones_list += list(_)
+
+
+class ModelCalendar_1(object):
+	'''
+	台历模式1，分区显示当前日期的月、日、周信息，日期用数字展示
+	'''
+	# Led 点阵分区列表
+	DAY_TENS_RANGE = (range(1, 6), range(7, 12), range(13, 18))
+	DAY_ONES_RANGE = (range(25, 30), range(31, 36), range(37, 42))
+	MONTH_RANGE = (range(48, 54), range(42, 48))
+	WEEKDAY_RANGE = (0, 6, 12, 18, 24, 30, 36)
+
+	# 字形列表
+	NUMBERS_GLYPH = {
+		'0': 0x7e3f, # '111111000111111'
+		'1': 0x27e1, # '010011111100001'
+		'2': 0x5ebd, # '101111010111101'
+		'3': 0x56bf, # '101011010111111'
+		'4': 0x709f, # '111000010011111'
+		'5': 0x76b7, # '111011010110111'
+		'6': 0x7eb7, # '111111010110111'
+		'7': 0x421f, # '100001000011111'
+		'8': 0x7ebf, # '111111010111111'
+		'9': 0x76bf, # '111011010111111'
+	}
+
+	def __init__(self):
+		self.__day_tens_list = []
+		self.__day_ones_list = []
+		self.__month_list = []
+		self.__weekday_list = list(ModelCalendar_1.WEEKDAY_RANGE)
+
+		self.__fill_range_list()
+
+	def __fill_range_list(self):
+		for _ in ModelCalendar_1.DAY_TENS_RANGE:
+			self.__day_tens_list += list(_)
+		for _ in ModelCalendar_1.DAY_ONES_RANGE:
+			self.__day_ones_list += list(_)
+		for _ in ModelCalendar_1.MONTH_RANGE:
+			self.__month_list += list(_)
+
+
+class ModelCalendar_2(object):
+	'''
+	台历模式2，分区显示当前日期的月、日、周信息，日期全部展示，需要额外的盖板
+	'''
+	# Led 点阵分区列表
+	DAYS_RANGE = (
+					   25, 31, 37,
+		2,  8, 14, 20, 26, 32, 38,
+		3,  9, 15, 21, 27, 33, 39,
+		4, 10, 16, 22, 28, 34, 40,
+		5, 11, 17, 23, 29, 35, 41
+	)
+	MONTH_RANGE = (42, 48, 43, 49, 44, 50, 45, 51, 46, 52, 47, 53)
+	WEEKDAY_RANGE = (0, 6, 12, 18, 24, 30, 36)
+
+	def __init__(self):
+		self.__days_list = list(ModelCalendar_2.DAYS_RANGE)
+		self.__month_list = list(ModelCalendar_2.MONTH_RANGE)
+		self.__weekday_list = list(ModelCalendar_2.WEEKDAY_RANGE)
+#endregion matrix model classes
+
+
+class MatrixClock(WS2812, DateTime):
+	MATRIX_MODE_FILENAME = 'matrix_mode.py'
+	MATRIX_MODE_IMPORT_NAME = MATRIX_MODE_FILENAME.split('.')[0]
+
+	MODE_CLOCK            = 0 # 时钟模式
+	MODE_CLOCK_CALENDAR_1 = 1 # 时钟、台历模式1循环切换
+	MODE_CALENDAR_1       = 2 # 台历模式1，数显日期
+	MODE_CALENDAR_2       = 3 # 台历模式2，单独显示日期，需要额外的盖板
+
+	MODE_LIST = {
+		MODE_CLOCK: 'clock',
+		MODE_CLOCK_CALENDAR_1: 'clock and calendar_1',
+		MODE_CALENDAR_1: 'calendar_1',
+		MODE_CALENDAR_2: 'calendar_2'
+	}
 
 	BRIGHTNESS_LEVEL = {
-		Photoresistor.LEVEL_1: 100,
-		Photoresistor.LEVEL_2: 95,
-		Photoresistor.LEVEL_3: 90,
-		Photoresistor.LEVEL_4: 85,
-		Photoresistor.LEVEL_5: 65,
-		Photoresistor.LEVEL_6: 45
+		Photoresistor.LEVEL_1: 60,
+		Photoresistor.LEVEL_2: 50,
+		Photoresistor.LEVEL_3: 40,
+		Photoresistor.LEVEL_4: 30,
+		Photoresistor.LEVEL_5: 20,
+		Photoresistor.LEVEL_6: 10
 	}
 
-	__MODE_LAST = MODE_BLINK
-	__LIGHT_BRIGHT_MAX = 0.6
+	def __init__(self):
+		WS2812.__init__(self,
+			CONFIG.WS2812_MATRIX.WIDTH,
+			CONFIG.WS2812_MATRIX.HEIGHT,
+			CONFIG.PINS.DIN_MATRIX)
+		DateTime.__init__(self)
 
-	__HOUR_TENS_PLACE_COLUMN = 0
-	__HOUR_ONES_PLACE_COLUMN = 4
-	__MINUTE_TENS_PLACE_COLUMN = 8
-	__MINUTE_ONES_PLACE_LIST = [] # [5, 11, 17, 23, 29, 35, 41, 47, 53, 59]
-
-	__WAITING = 0x80180380780 # '000000000010000000000110000000001110000000011110000000'
-	__NUM_V0 = 0x7e3f # '111111000111111'
-	__NUM_V1 = 0x27e1 # '010011111100001'
-	__NUM_V2 = 0x5ebd # '101111010111101'
-	__NUM_V3 = 0x56bf # '101011010111111'
-	__NUM_V4 = 0x709f # '111000010011111'
-	__NUM_V5 = 0x76b7 # '111011010110111'
-	__NUM_V6 = 0x7eb7 # '111111010110111'
-	__NUM_V7 = 0x421f # '100001000011111'
-	__NUM_V8 = 0x7ebf # '111111010111111'
-	__NUM_V9 = 0x76bf # '111011010111111'
-
-	__NUM_LIST_VERTICAL = {
-		'0': __NUM_V0,
-		'1': __NUM_V1,
-		'2': __NUM_V2,
-		'3': __NUM_V3,
-		'4': __NUM_V4,
-		'5': __NUM_V5,
-		'6': __NUM_V6,
-		'7': __NUM_V7,
-		'8': __NUM_V8,
-		'9': __NUM_V9
-	}
-
-	def __init__(self, width, height):
-		super().__init__(width, height)
-
-		self.__MINUTE_ONES_PLACE_LIST = [self.__height - 1 + self.__height * count for count in range(width)]
-
-		self.__rtc = RTC()
-		self.__adc = Photoresistor(Config.PINS.ADC) if Utilities.is_esp32c3() else None
+		self.__tasks     = Dispatcher()
+		self.__adc       = Photoresistor(CONFIG.PINS.BRIGHTNESS_ADC)
 		self.__animation = Animation()
-		self.__mode = self.MODE_TIME
-		self.__timer_count = 0
-		self.__last_adc_level = 0
-		self.__last_hour = 0
 
-		try:
-			__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
-			# 连接 wifi 动画
-			self.__animation.select_animation(Animation.ANIMATION_CONNECTING_1)
-			self.__animation.set_color_step(50)
-		except ImportError:
-			# 配网指示动画
-			self.__animation.select_animation(Animation.ANIMATION_CONNECTING_2)
+		# 模式对象实例
+		self.__model_clock    = None
+		self.__model_calendar = None
 
+		self.__current_mode   = self.__get_matrix_mode() # 当前运行模式
+		self.__last_adc_level = 0     # 记录当前 adc 等级
+		self.__last_hour      = 0     # 记录当前小时
+		self.__last_minute    = 0     # 记录当前分钟
+		self.__time_synced    = False # 校时成功状态
+		self.__hourly_chime   = True  # 整点报时开关
+		self.__powered_on     = True  # 屏幕显示开关
+
+		# 定时器任务
+		self.__task_sync_ntp_time    = lambda: self.__sync_time_cb()
+		self.__task_auto_brightness  = lambda: self.__auto_brightness_cb()
+		self.__task_refresh_time     = lambda: self.__refresh_time_cb()
+		self.__task_refresh_calendar = lambda: self.__refresh_calendar_cb()
+
+		# try:
+		# 	__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
+		# 	# 连接 wifi 动画
+		# 	self.__animation.select_animation(Animation.ANIMATION_CONNECTING_1)
+		# 	self.__animation.set_color_step(50)
+		# except ImportError:
+		# 	# 配网指示动画
+		# 	self.__animation.select_animation(Animation.ANIMATION_CONNECTING_2)
+
+		self.switch_mode(self.mode)
+
+	def start(self):
+		print(f'starting {MatrixClock.MODE_LIST[self.mode]} mode')
+
+		if not self.__time_synced:
+			self.__sync_time_cb()
+
+		self.__auto_brightness_cb()
+		self.__tasks.add_work(self.__task_auto_brightness, CONFIG.PERIOD.UPDATE_ADC_MS)
+
+		if self.mode == MatrixClock.MODE_CLOCK:
+			self.__refresh_time_cb()
+		elif self.mode == MatrixClock.MODE_CLOCK_CALENDAR_1:
+			pass
+		elif self.mode == MatrixClock.MODE_CALENDAR_1:
+			self.__refresh_calendar_cb()
+		elif self.mode == MatrixClock.MODE_CALENDAR_2:
+			self.__refresh_calendar_cb()
+
+	def stop(self):
+		self.__tasks.del_works()
 		self.clean()
-		self.set_brightness(20)
 
-	def show_time(self):
-		is_new_hour = False
-		datetime = self.__rtc.datetime()
-		hour = datetime[4]
-		minute = datetime[5]
+	def show_content(self):
+		if not self.__powered_on:
+			return
 
-		if self.__last_hour != hour and minute == 0:
-			self.__last_hour = hour
-			is_new_hour = True
-			self.show_blink()
+		print(f'showing {MatrixClock.MODE_LIST[self.mode]} content')
 
-		self.set_hour(hour)
-		self.set_minute(minute, is_new_hour)
+		if self.mode == MatrixClock.MODE_CLOCK:
+			self.show_time()
+		elif self.mode == MatrixClock.MODE_CLOCK_CALENDAR_1:
+			pass
+		elif self.mode == MatrixClock.MODE_CALENDAR_1:
+			self.show_calendar_1()
+		elif self.mode == MatrixClock.MODE_CALENDAR_2:
+			self.show_calendar_2()
 
-		if self.powered_on:
-			self.show()
+	def switch_power(self):
+		'''开启/关闭内容显示'''
+		self.__powered_on = not self.__powered_on
+
+		self.show_content() if self.__powered_on else self.clean()
+
+	def switch_mode(self, mode):
+		'''切换工作模式，切换后需要手动调用 start() 函数'''
+		self.mode = mode
+		print(f'switching mode to {MatrixClock.MODE_LIST[self.mode]}')
+
+		self.stop()
+
+		self.__model_clock = None
+		self.__model_calendar = None
+
+		if self.mode in (MatrixClock.MODE_CLOCK, MatrixClock.MODE_CLOCK_CALENDAR_1):
+			self.__model_clock = ModelClock()
+
+		if self.mode in (MatrixClock.MODE_CLOCK_CALENDAR_1, MatrixClock.MODE_CALENDAR_1):
+			self.__model_calendar = ModelCalendar_1()
+
+		if self.mode == MatrixClock.MODE_CALENDAR_2:
+			self.__model_calendar = ModelCalendar_2()
+
+		gc.collect()
 
 	def show_blink(self):
-		if not self.powered_on: return
+		if not self.__powered_on:
+			return
 
-		self.fill(Config.Colors.WHITE)
+		color = self.convert_color(CONFIG.COLORS.WHITE)
+
+		self.fill(color)
 		self.show()
 		utime.sleep(0.1)
 		self.clean()
 		utime.sleep(0.1)
-		self.fill(Config.Colors.WHITE)
+		self.fill(color)
 		self.show()
 		utime.sleep(0.1)
 		self.clean()
 		utime.sleep(0.1)
-		self.fill(Config.Colors.WHITE)
+		self.fill(color)
 		self.show()
 		utime.sleep(0.5)
 		self.clean()
@@ -136,148 +358,266 @@ class MatrixClock(WS2812Matrix):
 
 		self.show()
 
-	def power_on(self):
-		self.show_time()
+	#region model clock related function
+	def show_time(self):
+		'''刷新时钟内容'''
+		self.now()
 
-	def power_off(self):
-		self.clean()
+		is_new_hour = False
 
-	def switch_power(self):
-		'''
-		开启/关闭内容显示
-		'''
-		self.powered_on = not self.powered_on
+		if self.__last_hour != self.__hour and self.__minute == 0:
+			self.__last_hour = self.__hour
+			is_new_hour = True
 
-		self.power_on() if self.powered_on else self.power_off()
+			if self.hourly_chime:
+				self.show_blink()
 
-	def switch_mode(self):
-		self.__mode += 1
+		self.__set_hour()
+		self.__set_minute(is_new_hour)
+		self.show()
 
-		if self.__mode > self.__MODE_LAST:
-			self.__mode = 0
+	def __set_hour(self):
+		hour = self.__zfill_2int(self.__hour)
+		hour_tens = self.__zfile_15bin(ModelClock.NUMBERS_GLYPH[hour[0]])
+		hour_ones = self.__zfile_15bin(ModelClock.NUMBERS_GLYPH[hour[1]])
 
-	def start(self):
-		WifiHandler.sync_time()
-		self.show_time()
+		hour_color = self.convert_color(CONFIG.COLORS.TIME_HOUR)
 
-	def stop(self):
-		self.__rtc = None
-		self.__adc = None
+		for index, bit in enumerate(hour_tens):
+			self.__neopixel[self.__model_clock.hour_tens_list[index]] = hour_color if bit == '1' else CONFIG.COLORS.BLACK
 
-	# 定时器回调函数
-	def refresh_time(self):
-		self.__timer_count += 1
+		for index, bit in enumerate(hour_ones):
+			self.__neopixel[self.__model_clock.hour_ones_list[index]] = hour_color if bit == '1' else CONFIG.COLORS.BLACK
 
-		if self.__timer_count >= Config.PERIOD.CLOCK_SYNC:
-			print('sync time per 1 hour')
-			self.__timer_count = 0
-			WifiHandler.sync_time()
+	def __set_minute(self, is_new_hour:bool):
+		if is_new_hour:
+			def clean_minute_tens():
+				for index in range(4, -1, -1):
+					self.__neopixel[self.__model_clock.minute_tens_list[index]] = CONFIG.COLORS.BLACK
+					yield
 
-		self.show_time()
+			if not self.hourly_chime:
+				# 以动画效果消除分钟
+				minute_tens_gen = clean_minute_tens()
+				for index in range(8, -1, -1):
+					try:
+						next(minute_tens_gen)
+					except StopIteration:
+						pass
 
-	# 定时器回调函数
-	def auto_brightness(self):
-		adc_level = self.__adc.level
-
-		if self.__last_adc_level != adc_level:
-			self.__last_adc_level = adc_level
-		else:
-			return
-
-		self.set_brightness(self.BRIGHTNESS_LEVEL[adc_level])
-		self.show_time()
-		print(f'set brightness level to {adc_level} ({self.brightness}%)')
-
-	def set_brightness(self, value):
-		'''
-		设置亮度百分比
-		'''
-		self.brightness = value
-		self.__black = Config.Colors.BLACK
-		self.__white = self.set_color(Config.Colors.WHITE)
-		self.__blue = self.set_color(Config.Colors.BLUE)
-		self.__green = self.set_color(Config.Colors.GREEN)
-		self.__green_medium = self.set_color(Config.Colors.GREEN_MEDIUM)
-		self.__green_low = self.set_color(Config.Colors.GREEN_LOW)
-
-	def set_hour(self, value:int):
-		hour = self.__zfill_time(value)
-		hour_tens = self.__zfile_bin(self.__NUM_LIST_VERTICAL[hour[0]])
-		hour_ones = self.__zfile_bin(self.__NUM_LIST_VERTICAL[hour[1]])
-
-		start = self.__HOUR_TENS_PLACE_COLUMN * self.__height
-		for count in range(3):
-			for index, bit in enumerate(hour_tens[count * 5 : count * 5 + 5]):
-				self.__neopixel[start + count * self.__height + index] = self.__white if bit == '1' else self.__black
-
-		start = self.__HOUR_ONES_PLACE_COLUMN * self.__height
-		for count in range(3):
-			for index, bit in enumerate(hour_ones[count * 5:count * 5 + 5]):
-				self.__neopixel[start + count * self.__height + index] = self.__white if bit == '1' else self.__black
-
-	def set_minute(self, value:int, is_new_hour:bool):
-		minute = self.__zfill_time(value)
-		minute_tens = int(minute[0])
-		minute_ones = int(minute[1])
-
-		start = self.__MINUTE_TENS_PLACE_COLUMN * self.__height
-
-		# if minute_tens == 0:
-		for index in range(start, start + self.__height):
-			self.__neopixel[index] = self.__black
-
-		for index in range(minute_tens):
-			self.__neopixel[start + index] = self.__blue
-
-		# if minute_ones == 0:
-		if not is_new_hour and minute_ones == 0:
-			for index in range(8, -1, -1):
-				self.__neopixel[self.__MINUTE_ONES_PLACE_LIST[index]] = self.__black
-
-				if self.powered_on:
+					self.__neopixel[self.__model_clock.minute_ones_list[index]] = CONFIG.COLORS.BLACK
 					utime.sleep(0.05)
 					self.show()
+		else:
+			minute = self.__zfill_2int(self.__minute)
+			minute_tens = int(minute[0])
+			minute_ones = int(minute[1])
 
-		# for index in self.__MINUTE_ONES_PLACE_LIST:
-		# 	self.__neopixel[index] = self.__black
+			minute_tens_color = self.convert_color(CONFIG.COLORS.TIME_MINUTE_TENS)
+			minute_ones_colors = {
+				0: self.convert_color(CONFIG.COLORS.TIME_MINUTE_ONES_1),
+				1: self.convert_color(CONFIG.COLORS.TIME_MINUTE_ONES_2),
+				2: self.convert_color(CONFIG.COLORS.TIME_MINUTE_ONES_3)
+			}
 
-		count = 0
-		for index in range(minute_ones):
-			count += 1
-			green = self.__green
+			for count, index in enumerate(self.__model_clock.minute_tens_list):
+				self.__neopixel[index] = minute_tens_color if count < minute_tens else CONFIG.COLORS.BLACK
 
-			if 1 <= count <= 3:
-				green = self.__green_low
-			elif 4 <= count <= 6:
-				green = self.__green_medium
+			if self.__last_minute != self.__minute:
+				self.__last_minute = self.__minute
 
-			self.__neopixel[self.__MINUTE_ONES_PLACE_LIST[index]] = green
+				if minute_ones == 0:
+					for index in range(8, -1, -1):
+						self.__neopixel[self.__model_clock.minute_ones_list[index]] = CONFIG.COLORS.BLACK
+						utime.sleep(0.05)
+						self.show()
 
-	def __zfill_time(self, value:int):
-		'''将时分秒填充为 2 位数字符串'''
-		value = str(value)
-		return '0' + value if len(value) == 1 else value
-	
-	def __zfile_bin(self, value:int):
+			for count, index in enumerate(self.__model_clock.minute_ones_list):
+				# 感谢 Jason 提供的算法
+				# 假设有一组连续的数字，把它们每 n 个为一组，随意指定一个数字 x，求 x 在哪一组
+				# 公式为：int((x + 1) // (n + 0.1))
+				minute_ones_color = minute_ones_colors[int((count + 1) // 3.1)]
+				self.__neopixel[index] = minute_ones_color if count < minute_ones else CONFIG.COLORS.BLACK
+	#endregion model clock related function
+
+
+	#region model calendar_1 related function
+	def show_calendar_1(self):
+		'''刷新日历模式一显示内容'''
+		self.now()
+		self.__set_day_1()
+		self.__set_weekday_month_1()
+		self.show()
+
+	def __set_day_1(self):
+		day = self.__zfill_2int(self.__day)
+		day_tens = self.__zfile_15bin(ModelCalendar_1.NUMBERS_GLYPH[day[0]])
+		day_ones = self.__zfile_15bin(ModelCalendar_1.NUMBERS_GLYPH[day[1]])
+
+		day_color = self.convert_color(CONFIG.COLORS.DATE_DAY)
+
+		for index, bit in enumerate(day_tens):
+			self.__neopixel[self.__model_calendar.__day_tens_list[index]] = day_color if bit == '1' else CONFIG.COLORS.BLACK
+
+		for index, bit in enumerate(day_ones):
+			self.__neopixel[self.__model_calendar.__day_ones_list[index]] = day_color if bit == '1' else CONFIG.COLORS.BLACK
+
+	def __set_weekday_month_1(self):
+		for index in self.__model_calendar.__weekday_list:
+			self.__neopixel[index] = CONFIG.COLORS.DATE_WEEKDAY_BG
+
+		self.__neopixel[self.__model_calendar.__weekday_list[self.__weekday]] = self.convert_color(CONFIG.COLORS.DATE_WEEKDAY)
+
+		month_colors = {
+			0: self.convert_color(CONFIG.COLORS.DATE_MONTH_1),
+			1: self.convert_color(CONFIG.COLORS.DATE_MONTH_2),
+			2: self.convert_color(CONFIG.COLORS.DATE_MONTH_3),
+			3: self.convert_color(CONFIG.COLORS.DATE_MONTH_4)
+		}
+
+		for count, index in enumerate(self.__model_calendar.__month_list):
+			month_color = month_colors[int((count + 1) // 3.1)]
+			self.__neopixel[index] = month_color if count < self.__month else CONFIG.COLORS.DATE_MONTH_BG
+	#endregion model calendar_1 related function
+
+
+	#region model calendar_2 related function
+	def show_calendar_2(self):
+		'''刷新日历模式二显示内容'''
+		self.now()
+		self.__set_day_2()
+		self.__set_weekday_month_2()
+		self.show()
+
+	def __set_day_2(self):
+		for index in self.__model_calendar.__days_list:
+			self.__neopixel[index] = CONFIG.COLORS.DATE_DAYS_BG
+
+		self.__neopixel[self.__model_calendar.__days_list[self.__day - 1]] = self.convert_color(CONFIG.COLORS.DATE_DAY)
+
+	def __set_weekday_month_2(self):
+		for index in self.__model_calendar.__weekday_list:
+			self.__neopixel[index] = CONFIG.COLORS.DATE_WEEKDAY_BG
+
+		self.__neopixel[self.__model_calendar.__weekday_list[self.__weekday]] = self.convert_color(CONFIG.COLORS.DATE_WEEKDAY)
+
+		for index in self.__model_calendar.__month_list:
+			self.__neopixel[index] = CONFIG.COLORS.DATE_MONTH_BG
+
+		self.__neopixel[self.__model_calendar.__month_list[self.__month - 1]] = self.convert_color(CONFIG.COLORS.DATE_MONTH)
+	#endregion model calendar_2 related function
+
+
+	#region callbacks function
+	def __sync_time_cb(self):
+		'''联网校时回调函数'''
+		self.__time_synced = Utilities.sync_time()
+		self.__tasks.add_work(self.__task_sync_ntp_time, self.milliseconds_until_next_hour())
+
+		print('sync time after:', self.format_ms(self.milliseconds_until_next_hour()))
+
+	def __auto_brightness_cb(self):
+		'''自动亮度回调函数'''
+		adc_level = self.__adc.level
+
+		if self.__last_adc_level == adc_level:
+			return
+
+		self.__last_adc_level = adc_level
+		self.brightness = MatrixClock.BRIGHTNESS_LEVEL[adc_level]
+
+		self.show_content()
+		print(f'set brightness level to {adc_level} ({self.brightness}%)')
+
+	def __refresh_time_cb(self):
+		'''刷新时间显示回调函数'''
+		self.show_content()
+		self.__tasks.add_work(self.__task_refresh_time, self.milliseconds_until_next_minute())
+
+	def __refresh_calendar_cb(self):
+		'''刷新日历显示回调函数'''
+		self.show_content()
+		self.__tasks.add_work(self.__task_refresh_calendar, self.milliseconds_until_next_hour())
+	#endregion callbacks function
+
+
+	#region tools function
+	def __zfill_2int(self, value:int):
+		'''将时分、日期填充为 2 位数字符串'''
+		return f'{value:0>2}'
+
+	def __zfile_15bin(self, value:int):
 		'''将整型转为 15 位二进制字符串'''
-		return '{:015b}'.format(value)
-	
+		return f'{value:0>15b}'
+
+	def __output_matrix_mode_file(self):
+		with open(MatrixClock.MATRIX_MODE_FILENAME, 'w') as output:
+			output.write(
+f'''# automatic generated file
+mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
+'''
+			)
+
+	def __get_matrix_mode(self) -> int:
+		mode = MatrixClock.MODE_CLOCK
+
+		try:
+			mode = __import__(MatrixClock.MATRIX_MODE_IMPORT_NAME).mode
+		except ImportError:
+			pass
+
+		return mode
+
+	def set_time(self, minute, second=0):
+		# year, month, day, hour, minute, second, weekday, yearday
+		time = utime.localtime()
+		# year, month, day, weekday, hour, minute, second, subsecond
+		RTC().datetime((self.__year, self.__month, self.__day, self.__weekday, self.__hour, minute, second, 0))
+
+	def set_month(self, month):
+		self.now()
+		RTC().datetime((self.__year, month, self.__day, self.__weekday, self.__hour, self.__minute, self.__second, 0))
+	#endregion tools function
+
+
+	#region class properties
 	@property
-	def mode(self):
-		return self.__mode
+	def mode(self) -> int:
+		return self.__current_mode
 
 	@mode.setter
 	def mode(self, value:int):
-		if not isinstance(value, int) or self.MODE_BLINK < value < self.MODE_TIME:
-			value = self.MODE_TIME
-		
-		self.__mode = value
+		'''获取/设置当前运行模式'''
+		if value not in MatrixClock.MODE_LIST.keys():
+			self.__current_mode = MatrixClock.MODE_CLOCK
+
+		self.__current_mode = value
+
+	@property
+	def hourly_chime(self) -> bool:
+		return self.__hourly_chime
+
+	@hourly_chime.setter
+	def hourly_chime(self, value:bool):
+		'''获取/设置是否启用整点报时功能'''
+		if isinstance(value, bool):
+			self.__hourly_chime = value
+	#endregion class properties
 
 
 if __name__ == '__main__':
-	test = MatrixClock(9, 6)
+	from dispatcher import Dispatcher
 
-	test.set_brightness(20)
-	test.set_hour(13)
-	test.set_minute(39)
-	test.show()
+	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode():
+		utime.sleep(1)
+
+		matrix = MatrixClock()
+		matrix.start()
+
+		# tasks = Dispatcher()
+		# task_refresh_time = lambda: matrix.refresh_time()
+		# tasks.add_work(task_refresh_time, 5000)
+		# test.set_brightness(20)
+		# test.set_hour(13)
+		# test.set_minute(39)
+		# test.show()
