@@ -2,9 +2,10 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1.1'
-__version_info__ = (0, 1, 1)
-print('module runner version:', __version__)
+__version__ = '0.1.2'
+__version_info__ = (0, 1, 2)
+print('module update version:', __version__)
+
 
 import os
 import gc
@@ -62,52 +63,94 @@ class FileUtilities(object):
 
 
 class OnlineUpdater(FileUtilities):
-	def __init__(self):
+	ERROR_UPDATE_SUCCESS   = 0
+	ERROR_UPDATE_FAILED    = 1
+	ERROR_NO_INTERNET      = 2
+	ERROR_NO_CONFIG_FILE   = 3
+	ERROR_DOWNLOAD_SUCCESS = 4
+	ERROR_DOWNLOAD_FAILED  = 5
+	ERROR_DOWNLOAD_INCOMPLETED = 5
+
+	def __init__(self, result_cb:function=None):
+		# result_cb(result:int, msg:str, files:dict)
+		# files
+		# {
+		# 	{
+		# 		'xxx.py': {
+		# 		'path'         : '/utils',
+		# 		'size'         : 2459,
+		# 		'local_version': None,
+		# 		'filename'     : 'xxx.mpy',
+		# 		'full_path'    : '/utils/xxx.mpy'
+		# 		'result'       : 4,
+		# 		'version'      : (0, 1, 1)
+		# 	},
+		# }
+		self.__result_cb = result_cb
+
+		if not callable(result_cb):
+			self.__result_cb = None
+
 		self.mkdirs(UPDATE_PATH)
 
-	def check(self):
+	def check(self, retry:int=3):
+		'''
+		检查服务器更新文件并自动完成更新
+		'''
 		if not network.WLAN(network.STA_IF).isconnected():
 			print('no internet connection, update terminated!')
+
+			if self.__result_cb is not None:
+				self.__result_cb(OnlineUpdater.ERROR_NO_INTERNET, 'no internet connection', None)
 			return
 
-		need_hard_reset = False
-		update_files = self.__get_update_config()
+		# 可更新的文件列表
+		update_file_list = self.__get_update_config()
 
-		for file in update_files.values():
-			full_path = f'{file["path"]}/{file["filename"]}'.replace('//', '/')
-			version_info = self.__get_file_version_info(full_path)
+		if len(update_file_list) == 0:
+			if self.__result_cb is not None:
+				self.__result_cb(OnlineUpdater.ERROR_NO_CONFIG_FILE, 'no update config file exists', None)
+			return
 
-			print(f'[{full_path}] remote update version: {file["version"]}')
+		# 需要更新的文件列表
+		updating_file_list = self.__analyse_update_files(update_file_list)
+		del update_file_list
 
-			if version_info is None or file['version'] > version_info:
-				mip.install(file['url'], target=UPDATE_PATH)
-				self.mkdirs(file['path'])
+		if len(updating_file_list) == 0:
+			if self.__result_cb is not None:
+				self.__result_cb(OnlineUpdater.ERROR_UPDATE_SUCCESS, 'already up to date', None)
+			return
 
-				temp_filename = f'{UPDATE_PATH}/{file["filename"]}'.replace('//', '/')
+		downloading_file_list = self.__download_updating_files(updating_file_list, retry)
 
-				if self.exist(temp_filename):
-					if os.stat(temp_filename)[6] == file['size']:
-						self.move(temp_filename, full_path)
-						need_hard_reset = True
+		update_success = True
+		for file in downloading_file_list.values():
+			if file['result'] != OnlineUpdater.ERROR_DOWNLOAD_SUCCESS:
+				update_success = False
+				break
 
-						print(f'[{full_path}] up to date from {version_info} to {file["version"]}')
-					else:
-						print(f'[{temp_filename}] download incompleted!')
-				else:
-					print(f'[{temp_filename}] download failed!')
-			else:
-				print(f'[{full_path}] already up to date!')
+		if update_success:
+			for file in downloading_file_list.values():
+				self.move(file['temp_file'], file['full_path'])
+				file.pop('url')
+				file.pop('temp_file')
 
+			if self.__result_cb is not None:
+				self.__result_cb(OnlineUpdater.ERROR_UPDATE_SUCCESS, 'update success', downloading_file_list)
+		else:
+			for file in downloading_file_list.values():
+				file.pop('url')
+				file.pop('temp_file')
+
+			if self.__result_cb is not None:
+				self.__result_cb(OnlineUpdater.ERROR_UPDATE_FAILED, 'update failed', downloading_file_list)			
+
+		del downloading_file_list
 		gc.collect()
-
-		if need_hard_reset:
-			print('update completed, hard reset now...')
-			network.WLAN(network.STA_IF).active(False)
-			reset()
 
 	def __get_update_config(self) -> dict:
 		'''
-		从在线更新配置文件获取要更新的文件信息
+		从在线更新配置文件获取可以更新的文件列表
 		'''
 		result = {}
 
@@ -122,7 +165,58 @@ class OnlineUpdater(FileUtilities):
 
 		return result
 
-	def __get_file_version_info(self, filename:str):
+	def __analyse_update_files(self, files:dict) -> dict:
+		'''
+		分析可更新文件列表，获取需要的文件信息
+		'''
+		result = {}
+
+		for key, file in files.items():
+			full_path = f'{file["path"]}/{file["filename"]}'.replace('//', '/')
+			version = self.__get_file_version_info(full_path)
+
+			if version is None or file['version'] > version:
+				file['full_path'] = full_path
+				file['local_version'] = version
+				result[key] = file
+
+		return result
+
+	def __download_updating_files(self, files:dict, retry:int) -> dict:
+		'''
+		下载需要更新的文件
+		'''
+		result = {}
+
+		for key, file in files.items():
+			for count in range(1, retry + 1):
+				print(f'- try to download file {file["filename"]} ({count}/{retry})')
+				mip.install(file['url'], target=f'{UPDATE_PATH}{file["path"]}')
+
+				temp_file = f'{UPDATE_PATH}{file["path"]}/{file["filename"]}'.replace('//', '/')
+
+				if self.exist(temp_file):
+					if os.stat(temp_file)[6] == file['size']:
+						file['result']    = OnlineUpdater.ERROR_DOWNLOAD_SUCCESS
+						file['message']   = 'download success'
+						file['temp_file'] = temp_file
+
+						result[key] = file
+						break
+					else:
+						file['result']  = OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED
+						file['message'] = 'download incompleted'
+						print(f'[{temp_file}] download incompleted!')
+				else:
+					file['result']  = OnlineUpdater.ERROR_DOWNLOAD_FAILED
+					file['message'] = 'download failed'
+					print(f'[{temp_file}] download failed!')
+
+				result[key] = file
+
+		return result
+
+	def __get_file_version_info(self, filename:str) -> tuple:
 		'''
 		获取本地文件版本信息
 		'''
@@ -154,5 +248,23 @@ class OnlineUpdater(FileUtilities):
 if __name__ == '__main__':
 	from utils.wifihandler import WifiHandler
 
-	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
-		OnlineUpdater().check()
+	def update_callback(result:int, msg:str, files:dict):
+		print(f'- result: {msg}')
+
+		if files:
+			for file in files.values():
+				if file['result'] == OnlineUpdater.ERROR_DOWNLOAD_SUCCESS:
+					print(f'    [{file["full_path"]}] up to date from {file["local_version"]} to {file["version"]}')
+				elif file['result'] in (OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED, OnlineUpdater.ERROR_DOWNLOAD_FAILED):
+					print(f'    [{file["full_path"]}] {file["message"]}')
+
+		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS and files:
+			print('update completed, hard reset now...')
+			# network.WLAN(network.STA_IF).active(False)
+			# reset()
+
+	if not network.WLAN(network.STA_IF).isconnected():
+		WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120)
+
+	updater = OnlineUpdater(update_callback)
+	updater.check()
