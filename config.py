@@ -51,7 +51,8 @@ class Config(object):
 
 
 	class PERIOD(object):
-		UPDATE_ADC_MS = 500 # 光敏电阻检测间隔时间
+		UPDATE_ADC_MS     = 100    # 光敏电阻检测间隔时间
+		SWITCH_DISPLAY_MS = 20_000 # 临时切换显示内容持续时长
 
 
 	class WS2812_MATRIX(object):
@@ -74,10 +75,11 @@ class Config(object):
 		PINEGREEN    = (1, 121, 111)
 		ALMOSTBLACK  = (2, 2, 2)
 		ALMOSTGREEN  = (2, 3, 0)
+		DENIM        = (21, 96, 189)
 
 		# 时间显示相关颜色
 		TIME_HOUR          = WHITE
-		TIME_MINUTE_TENS   = SKYBLUE
+		TIME_MINUTE_TENS   = DENIM
 		TIME_MINUTE_ONES_1 = YELLOWGREEN
 		TIME_MINUTE_ONES_2 = TURQUOISE
 		TIME_MINUTE_ONES_3 = MEDIUMORCHID
