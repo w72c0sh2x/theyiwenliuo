@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1.4'
-__version_info__ = (0, 1, 4)
+__version__ = '0.1.5'
+__version_info__ = (0, 1, 5)
 print('module matrix_clock version:', __version__)
 
 
@@ -112,6 +112,40 @@ class DateTime(object):
 		self.__second,\
 		self.__weekday,\
 		_ = utime.localtime() # (year, month, mday, hour, minute, second, weekday, yearday)
+
+	@property
+	def year(self):
+		'''年份'''
+		return self.__year
+
+	@property
+	def month(self):
+		'''月份'''
+		return self.__month
+
+	@property
+	def day(self):
+		'''日期'''
+		return self.__day
+
+	@property
+	def hour(self):
+		'''小时'''
+		return self.__hour
+
+	@property
+	def minute(self):
+		'''分钟'''
+		return self.__minute
+	@property
+	def second(self):
+		'''秒数'''
+		return self.__second
+
+	@property
+	def weekday(self):
+		'''星期'''
+		return self.__weekday
 
 	def __str__(self):
 		self.now()
@@ -286,17 +320,18 @@ class MatrixClock(WS2812, DateTime):
 		  前两种模式可以临时互相切换显示内容
 		  第三种模式需要更换面板所以不能互换
 		'''
-		self.__working_mode   = self.__get_matrix_mode()
-		self.__display_mode   = self.__working_mode
-		self.__menu_mode      = False
-		self.__last_menu      = self.__working_mode
-		self.__last_adc_level = 0     # 记录当前 adc 等级
-		self.__last_hour      = 0     # 记录当前小时
-		self.__last_minute    = 0     # 记录当前分钟
-		self.__started        = False # 设备运行状态
-		self.__time_synced    = False # 校时成功状态
-		self.__hourly_chime   = True  # 整点报时开关
-		self.__powered_on     = True  # 屏幕显示开关
+		self.__working_mode     = self.__get_matrix_mode()
+		self.__display_mode     = self.__working_mode
+		self.__menu_mode        = False
+		self.__last_menu        = self.__working_mode
+		self.__last_adc_level   = 0     # 记录当前 adc 等级
+		self.__last_hour        = 0     # 记录当前小时
+		self.__last_minute      = 0     # 记录当前分钟
+		self.__started          = False # 设备运行状态
+		self.__time_synced      = False # 校时成功状态
+		self.__hourly_chime     = True  # 整点报时开关
+		self.__powered_on       = True  # 屏幕显示开关
+		self.__normal_direction = True  # 设备摆放方向
 
 		# 定时器任务
 		self.__task_sync_ntp_time    = lambda: self.__sync_time_cb()
@@ -306,6 +341,9 @@ class MatrixClock(WS2812, DateTime):
 		self.__task_show_animation   = lambda: self.__show_animation_cb()
 		self.__task_switch_display   = lambda: self.__switch_display_cb()
 		self.__task_checking_update  = lambda: self.__online_update_check_cb()
+
+		# 根据设备摆放方向计算当前 Led 索引值
+		self.__get_index = lambda x: x if self.__normal_direction else (53-x)
 
 		self.switch_working_mode(self.mode)
 		self.__start_auto_brightness()
@@ -507,8 +545,8 @@ class MatrixClock(WS2812, DateTime):
 
 		is_new_hour = False
 
-		if self.__last_hour != self.__hour and self.__minute == 0:
-			self.__last_hour = self.__hour
+		if self.__last_hour != self.hour and self.minute == 0:
+			self.__last_hour = self.hour
 			is_new_hour = True
 
 			if self.hourly_chime:
@@ -519,23 +557,23 @@ class MatrixClock(WS2812, DateTime):
 		self.show()
 
 	def __set_hour(self):
-		hour = self.__zfill_2int(self.__hour)
+		hour = self.__zfill_2int(self.hour)
 		hour_tens = self.__zfile_15bin(ModelClock.NUMBERS_GLYPH[hour[0]])
 		hour_ones = self.__zfile_15bin(ModelClock.NUMBERS_GLYPH[hour[1]])
 
 		hour_color = self.convert_color(CONFIG.COLORS.TIME_HOUR)
 
 		for index, bit in enumerate(hour_tens):
-			self.__neopixel[self.__model_clock.hour_tens_list[index]] = hour_color if bit == '1' else CONFIG.COLORS.BLACK
+			self.__neopixel[self.__get_index(self.__model_clock.hour_tens_list[index])] = hour_color if bit == '1' else CONFIG.COLORS.BLACK
 
 		for index, bit in enumerate(hour_ones):
-			self.__neopixel[self.__model_clock.hour_ones_list[index]] = hour_color if bit == '1' else CONFIG.COLORS.BLACK
+			self.__neopixel[self.__get_index(self.__model_clock.hour_ones_list[index])] = hour_color if bit == '1' else CONFIG.COLORS.BLACK
 
 	def __set_minute(self, is_new_hour:bool):
 		if is_new_hour:
 			def clean_minute_tens():
 				for index in range(4, -1, -1):
-					self.__neopixel[self.__model_clock.minute_tens_list[index]] = CONFIG.COLORS.BLACK
+					self.__neopixel[self.__get_index(self.__model_clock.minute_tens_list[index])] = CONFIG.COLORS.BLACK
 					yield
 
 			if not self.hourly_chime:
@@ -547,11 +585,11 @@ class MatrixClock(WS2812, DateTime):
 					except StopIteration:
 						pass
 
-					self.__neopixel[self.__model_clock.minute_ones_list[index]] = CONFIG.COLORS.BLACK
+					self.__neopixel[self.__get_index(self.__model_clock.minute_ones_list[index])] = CONFIG.COLORS.BLACK
 					utime.sleep(0.05)
 					self.show()
 		else:
-			minute = self.__zfill_2int(self.__minute)
+			minute = self.__zfill_2int(self.minute)
 			minute_tens = int(minute[0])
 			minute_ones = int(minute[1])
 
@@ -563,14 +601,14 @@ class MatrixClock(WS2812, DateTime):
 			}
 
 			for count, index in enumerate(self.__model_clock.minute_tens_list):
-				self.__neopixel[index] = minute_tens_color if count < minute_tens else CONFIG.COLORS.BLACK
+				self.__neopixel[self.__get_index(index)] = minute_tens_color if count < minute_tens else CONFIG.COLORS.BLACK
 
-			if self.__last_minute != self.__minute:
-				self.__last_minute = self.__minute
+			if self.__last_minute != self.minute:
+				self.__last_minute = self.minute
 
 				if minute_ones == 0:
 					for index in range(8, -1, -1):
-						self.__neopixel[self.__model_clock.minute_ones_list[index]] = CONFIG.COLORS.BLACK
+						self.__neopixel[self.__get_index(self.__model_clock.minute_ones_list[index])] = CONFIG.COLORS.BLACK
 						utime.sleep(0.05)
 						self.show()
 
@@ -581,7 +619,7 @@ class MatrixClock(WS2812, DateTime):
 				感谢 Jason 提供的算法
 				'''
 				minute_ones_color = minute_ones_colors[int((count + 1) // 3.1)]
-				self.__neopixel[index] = minute_ones_color if count < minute_ones else CONFIG.COLORS.BLACK
+				self.__neopixel[self.__get_index(index)] = minute_ones_color if count < minute_ones else CONFIG.COLORS.BLACK
 	#endregion model clock related function
 
 
@@ -594,23 +632,23 @@ class MatrixClock(WS2812, DateTime):
 		self.show()
 
 	def __set_day_1(self):
-		day = self.__zfill_2int(self.__day)
+		day = self.__zfill_2int(self.day)
 		day_tens = self.__zfile_15bin(ModelCalendar_1.NUMBERS_GLYPH[day[0]])
 		day_ones = self.__zfile_15bin(ModelCalendar_1.NUMBERS_GLYPH[day[1]])
 
 		day_color = self.convert_color(CONFIG.COLORS.DATE_DAY)
 
 		for index, bit in enumerate(day_tens):
-			self.__neopixel[self.__model_calendar.__day_tens_list[index]] = day_color if bit == '1' else CONFIG.COLORS.BLACK
+			self.__neopixel[self.__get_index(self.__model_calendar.__day_tens_list[index])] = day_color if bit == '1' else CONFIG.COLORS.BLACK
 
 		for index, bit in enumerate(day_ones):
-			self.__neopixel[self.__model_calendar.__day_ones_list[index]] = day_color if bit == '1' else CONFIG.COLORS.BLACK
+			self.__neopixel[self.__get_index(self.__model_calendar.__day_ones_list[index])] = day_color if bit == '1' else CONFIG.COLORS.BLACK
 
 	def __set_weekday_month_1(self):
 		for index in self.__model_calendar.__weekday_list:
-			self.__neopixel[index] = CONFIG.COLORS.DATE_WEEKDAY_BG
+			self.__neopixel[self.__get_index(index)] = CONFIG.COLORS.DATE_WEEKDAY_BG
 
-		self.__neopixel[self.__model_calendar.__weekday_list[self.__weekday]] = self.convert_color(CONFIG.COLORS.DATE_WEEKDAY)
+		self.__neopixel[self.__get_index(self.__model_calendar.__weekday_list[self.weekday])] = self.convert_color(CONFIG.COLORS.DATE_WEEKDAY)
 
 		month_colors = {
 			0: self.convert_color(CONFIG.COLORS.DATE_MONTH_1),
@@ -621,7 +659,7 @@ class MatrixClock(WS2812, DateTime):
 
 		for count, index in enumerate(self.__model_calendar.__month_list):
 			month_color = month_colors[int((count + 1) // 3.1)]
-			self.__neopixel[index] = month_color if count < self.__month else CONFIG.COLORS.DATE_MONTH_BG
+			self.__neopixel[self.__get_index(index)] = month_color if count < self.month else CONFIG.COLORS.DATE_MONTH_BG
 	#endregion model calendar_1 related function
 
 
@@ -635,20 +673,20 @@ class MatrixClock(WS2812, DateTime):
 
 	def __set_day_2(self):
 		for index in self.__model_calendar.__days_list:
-			self.__neopixel[index] = CONFIG.COLORS.DATE_DAYS_BG
+			self.__neopixel[self.__get_index(index)] = CONFIG.COLORS.DATE_DAYS_BG
 
-		self.__neopixel[self.__model_calendar.__days_list[self.__day - 1]] = self.convert_color(CONFIG.COLORS.DATE_DAY)
+		self.__neopixel[self.__get_index(self.__model_calendar.__days_list[self.day - 1])] = self.convert_color(CONFIG.COLORS.DATE_DAY)
 
 	def __set_weekday_month_2(self):
 		for index in self.__model_calendar.__weekday_list:
-			self.__neopixel[index] = CONFIG.COLORS.DATE_WEEKDAY_BG
+			self.__neopixel[self.__get_index(index)] = CONFIG.COLORS.DATE_WEEKDAY_BG
 
-		self.__neopixel[self.__model_calendar.__weekday_list[self.__weekday]] = self.convert_color(CONFIG.COLORS.DATE_WEEKDAY)
+		self.__neopixel[self.__get_index(self.__model_calendar.__weekday_list[(self.weekday + 1) % 7])] = self.convert_color(CONFIG.COLORS.DATE_WEEKDAY)
 
 		for index in self.__model_calendar.__month_list:
-			self.__neopixel[index] = CONFIG.COLORS.DATE_MONTH_BG
+			self.__neopixel[self.__get_index(index)] = CONFIG.COLORS.DATE_MONTH_BG
 
-		self.__neopixel[self.__model_calendar.__month_list[self.__month - 1]] = self.convert_color(CONFIG.COLORS.DATE_MONTH)
+		self.__neopixel[self.__get_index(self.__model_calendar.__month_list[self.month - 1])] = self.convert_color(CONFIG.COLORS.DATE_MONTH)
 	#endregion model calendar_2 related function
 
 
@@ -688,7 +726,7 @@ class MatrixClock(WS2812, DateTime):
 		remains, frame, color = self.__animation.get_frame_and_color()
 
 		for index, bit in enumerate(self.__zfill_54bin(frame)):
-			self.__neopixel[index] = color if bit == '1' else CONFIG.COLORS.BLACK
+			self.__neopixel[self.__get_index(index)] = color if bit == '1' else CONFIG.COLORS.BLACK
 
 		self.show()
 
@@ -806,12 +844,12 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 		# year, month, day, hour, minute, second, weekday, yearday
 		time = utime.localtime()
 		# year, month, day, weekday, hour, minute, second, subsecond
-		RTC().datetime((self.__year, self.__month, self.__day, self.__weekday, self.__hour, minute, second, 0))
+		RTC().datetime((self.year, self.month, self.day, self.weekday, self.hour, minute, second, 0))
 		self.show_content()
 
 	def set_month(self, month):
 		self.now()
-		RTC().datetime((self.__year, month, self.__day, self.__weekday, self.__hour, self.__minute, self.__second, 0))
+		RTC().datetime((self.year, month, self.day, self.weekday, self.hour, self.minute, self.second, 0))
 		self.show_content()
 	#endregion tools function
 
