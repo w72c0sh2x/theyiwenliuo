@@ -13,14 +13,25 @@ class AnimationException(Exception):
 
 class Animation(object):
 	'''生成简易动画数据'''
-	CONFIG_WIFI  = 0
-	CONNECT_WIFI = 1
-	HEARTBEAT    = 2
+	CONFIG_WIFI  = 0 # 配网指示
+	CONNECT_WIFI = 1 # 联网指示
+	HEARTBEAT    = 2 # 心跳动画
+
+	MENU_CLOCK      = 3 # 时钟菜单
+	MENU_CALENDAR_1 = 4 # 台历1菜单
+	MENU_CALENDAR_2 = 5 # 台历2菜单
+
+	DEFAULT_PERIOD = 50
+	DEFAULT_STEPS  = 10
+	DEFAULT_LOOPS  = True
 
 	ANIMATION_LIST = [
 		CONFIG_WIFI,
 		CONNECT_WIFI,
-		HEARTBEAT
+		HEARTBEAT,
+		MENU_CLOCK,
+		MENU_CALENDAR_1,
+		MENU_CALENDAR_2
 	]
 
 	RESOURCES = {
@@ -51,19 +62,65 @@ class Animation(object):
 				1: 0xc48948c000,   # 000000000000001100010010001001010010001100000000000000
 				2: 0x8522448462508 # 001000010100100010010001001000010001100010010100001000
 			}
+		},
+		# 时钟菜单图标
+		MENU_CLOCK: {
+			'period': 40,
+			'loops': False,
+			'frames': {
+				0: 0xc000000000000,  # 001100000000000000000000000000000000000000000000000000
+				1: 0x12300000000000, # 010010001100000000000000000000000000000000000000000000
+				2: 0x2548c000000000, # 100101010010001100000000000000000000000000000000000000
+				3: 0x2d952300000000, # 101101100101010010001100000000000000000000000000000000
+				4: 0x21b6548c000000, # 100001101101100101010010001100000000000000000000000000
+				5: 0x1286d952300000, # 010010100001101101100101010010001100000000000000000000
+				6: 0xc4a1b6548c000,  # 001100010010100001101101100101010010001100000000000000
+				7: 0x31286d952300    # 000000001100010010100001101101100101010010001100000000
+			}
+		},
+		# 台历1菜单图标
+		MENU_CALENDAR_1: {
+			'period': 40,
+			'loops': False,
+			'frames': {
+				0: 0x1f000000000000, # 011111000000000000000000000000000000000000000000000000
+				1: 0x217c0000000000, # 100001011111000000000000000000000000000000000000000000
+				2: 0x2385f000000000, # 100011100001011111000000000000000000000000000000000000
+				3: 0x2f8e17c0000000, # 101111100011100001011111000000000000000000000000000000
+				4: 0x2bbe385f000000, # 101011101111100011100001011111000000000000000000000000
+				5: 0x21aef8e17c0000, # 100001101011101111100011100001011111000000000000000000
+				6: 0x1f86bbe385f000, # 011111100001101011101111100011100001011111000000000000
+				7: 0x7e1aef8e17c0    # 000000011111100001101011101111100011100001011111000000
+			}
+		},
+		# 台历2菜单图标
+		MENU_CALENDAR_2: {
+			'period': 40,
+			'loops': False,
+			'frames': {
+				0: 0x1f000000000000, # 011111000000000000000000000000000000000000000000000000
+				1: 0x217c0000000000, # 100001011111000000000000000000000000000000000000000000
+				2: 0x2385f000000000, # 100011100001011111000000000000000000000000000000000000
+				3: 0x2f8e17c0000000, # 101111100011100001011111000000000000000000000000000000
+				4: 0x29be385f000000, # 101001101111100011100001011111000000000000000000000000
+				5: 0x21a6f8e17c0000, # 100001101001101111100011100001011111000000000000000000
+				6: 0x1f869be385f000, # 011111100001101001101111100011100001011111000000000000
+				7: 0x7e1a6f8e17c0    # 000000011111100001101001101111100011100001011111000000
+			}
 		}
 	}
 
 	def __init__(self):
-		self.__period = 50
-		self.__steps  = 10
+		self.__period = Animation.DEFAULT_PERIOD
+		self.__loops  = Animation.DEFAULT_LOOPS
+		self.__steps  = Animation.DEFAULT_STEPS
 		self.__frames = None
 		self.__colors = None
 
 		self.__frames_gen = None
 		self.__colors_gen = None
 
-	def select_animation(self, animation, colors:tuple):
+	def select_animation(self, animation:int, colors:tuple):
 		'''选择一个动画效果'''
 		if animation not in Animation.ANIMATION_LIST:
 			raise AnimationException('invalid animation')
@@ -83,23 +140,29 @@ class Animation(object):
 		else:
 			raise AnimationException('invalid colors')
 
-		self.__period = resource.get('period', self.__period)
-		self.__steps  = resource.get('steps', self.__steps)
+		self.__period = resource.get('period', Animation.DEFAULT_PERIOD)
+		self.__loops  = resource.get('loops', Animation.DEFAULT_LOOPS)
+		self.__steps  = resource.get('steps', Animation.DEFAULT_STEPS)
 
-	def get_frame_and_color(self):
-		'''获取当前帧数据和颜色'''
-		return next(self.__frames_gen), next(self.__colors_gen)
+	def get_frame_and_color(self) -> tuple:
+		'''
+		获取当前帧数据和颜色
 
-	def __frame_generator(self):
+		@return: 剩余帧数, 当前帧数据, 当前颜色数据
+		'''
+		remains, frame = next(self.__frames_gen)
+		return remains, frame, next(self.__colors_gen)
+
+	def __frame_generator(self) -> tuple:
 		'''帧数据生成器'''
 		index = 0
 		count = len(self.__frames)
 
 		while True:
-			yield self.__frames[index]
+			yield count - index - 1, self.__frames[index]
 			index = (index + 1) % count
 
-	def __color_generator(self):
+	def __color_generator(self) -> tuple:
 		'''颜色数据生成器'''
 		while True:
 			if isinstance(self.colors[0], int):
@@ -140,6 +203,15 @@ class Animation(object):
 		self.__period = value
 
 	@property
+	def loops(self):
+		return self.__loops
+
+	@loops.setter
+	def loops(self, value:bool):
+		'''设置/获取是否循环播放'''
+		self.__loops = value
+
+	@property
 	def colors(self):
 		return self.__colors
 
@@ -159,26 +231,28 @@ if __name__ == '__main__':
 
 
 	CONFIG = Utilities.import_config()
-	colors = None
 	current_animation = 0
 
-	def zfill_54bin(value):
+	def zfill_54bin(value:int):
 		return f'{value:054b}'
 
 	def show_animation():
-		frame, color = animation.get_frame_and_color()
+		remains, frame, color = animation.get_frame_and_color()
 
 		for index, bit in enumerate(zfill_54bin(frame)):
 			ws2812.__neopixel[index] = color if bit == '1' else CONFIG.COLORS.BLACK
 
 		ws2812.show()
 
+		if not animation.loops and remains == 0:
+			tasks.del_work(show_animation)
+
 	def show_test():
 		animation.select_animation(
-			Animation.CONFIG_WIFI,
+			Animation.MENU_CLOCK,
 			(
-				ws2812.convert_color(CONFIG.COLORS.BLACK),
-				ws2812.convert_color(CONFIG.COLORS.LIGHTGREEN),
+				# ws2812.convert_color(CONFIG.COLORS.BLACK),
+				# ws2812.convert_color(CONFIG.COLORS.LIGHTGREEN),
 				ws2812.convert_color(CONFIG.COLORS.SKYBLUE)
 			)
 		)
@@ -186,18 +260,25 @@ if __name__ == '__main__':
 		tasks.add_work(show_animation, animation.period)
 
 	def show_tests():
-		global current_animation, colors
+		global current_animation
+		colors = None
 
-		if current_animation == 0:
+		if current_animation == Animation.CONFIG_WIFI:
 			colors = (
 				ws2812.convert_color((255, 0, 0)),
 				ws2812.convert_color((0, 255, 0)),
 				ws2812.convert_color((0, 0, 255))
 			)
-		elif current_animation == 1:
+		elif current_animation == Animation.CONNECT_WIFI:
 			colors = ws2812.convert_color((0, 255, 0))
-		elif current_animation == 2:
+		elif current_animation == Animation.HEARTBEAT:
 			colors = ws2812.convert_color((255, 0, 0))
+		elif current_animation == Animation.MENU_CLOCK:
+			colors = ws2812.convert_color((128, 128, 128))
+		elif current_animation == Animation.MENU_CALENDAR_1:
+			colors = ws2812.convert_color((128, 0, 128))
+		elif current_animation == Animation.MENU_CALENDAR_2:
+			colors = ws2812.convert_color((0, 128, 128))
 
 		animation.select_animation(current_animation, colors)
 		tasks.add_work(show_animation, animation.period)
@@ -212,5 +293,5 @@ if __name__ == '__main__':
 
 	ws2812.brightness = 40
 
-	# show_test1()
+	# show_test()
 	show_tests()
