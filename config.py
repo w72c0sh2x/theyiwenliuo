@@ -61,7 +61,7 @@ class Config(object):
 		BLACK = (0, 0, 0)
 		WHITE = (255, 255, 255)
 		RED = (255, 0, 0)
-		BLUE = (40, 40, 219)
+		BLUE = (2, 79, 195)
 		GREEN = (247, 24, 255)			# minute 7~9
 		GREEN_MEDIUM = (55, 231, 253)	# minute 4~6
 		GREEN_LOW = (164, 229, 1)		# minute 1~3
