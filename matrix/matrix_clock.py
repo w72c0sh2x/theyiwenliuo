@@ -177,7 +177,7 @@ class ModelCalendar_1(object):
 
 class ModelCalendar_2(object):
 	'''
-	台历模式2，分区显示当前日期的月、日、周信息，日期全部展示，需要额外的盖板
+	台历模式2，分区显示当前日期的月、日、周信息，日期全部展示，需要额外的面板
 	'''
 	# Led 点阵分区列表
 	DAYS_RANGE = (
@@ -201,16 +201,20 @@ class MatrixClock(WS2812, DateTime):
 	MATRIX_MODE_FILENAME = 'matrix_mode.py'
 	MATRIX_MODE_IMPORT_NAME = MATRIX_MODE_FILENAME.split('.')[0]
 
-	MODE_CLOCK            = 0 # 时钟模式
-	MODE_CLOCK_CALENDAR_1 = 1 # 时钟、台历模式1循环切换
-	MODE_CALENDAR_1       = 2 # 台历模式1，数显日期
-	MODE_CALENDAR_2       = 3 # 台历模式2，单独显示日期，需要额外的盖板
+	MODE_CLOCK      = 0 # 时钟模式
+	MODE_CALENDAR_1 = 1 # 台历模式1，数显日期
+	MODE_CALENDAR_2 = 2 # 台历模式2，单独显示日期，需要额外的面板
 
 	MODE_LIST = {
-		MODE_CLOCK: 'clock',
-		MODE_CLOCK_CALENDAR_1: 'clock and calendar_1',
+		MODE_CLOCK     : 'clock',
 		MODE_CALENDAR_1: 'calendar_1',
 		MODE_CALENDAR_2: 'calendar_2'
+	}
+
+	MENU_LIST = {
+		MODE_CLOCK     : Animation.MENU_CLOCK,
+		MODE_CALENDAR_1: Animation.MENU_CALENDAR_1,
+		MODE_CALENDAR_2: Animation.MENU_CALENDAR_2
 	}
 
 	BRIGHTNESS_LEVEL = {
@@ -237,10 +241,20 @@ class MatrixClock(WS2812, DateTime):
 		self.__model_clock    = None
 		self.__model_calendar = None
 
-		self.__current_mode   = self.__get_matrix_mode() # 当前运行模式
+		'''
+		设备工作模式
+		  工作模式就是 MODE_LIST 列出来的三种
+		  前两种模式可以临时互相切换显示内容
+		  第三种模式需要更换面板所以不能互换
+		'''
+		self.__working_mode   = self.__get_matrix_mode()
+		self.__display_mode   = self.__working_mode
+		self.__menu_mode      = False
+		self.__last_menu      = self.__working_mode
 		self.__last_adc_level = 0     # 记录当前 adc 等级
 		self.__last_hour      = 0     # 记录当前小时
 		self.__last_minute    = 0     # 记录当前分钟
+		self.__started        = False # 设备运行状态
 		self.__time_synced    = False # 校时成功状态
 		self.__hourly_chime   = True  # 整点报时开关
 		self.__powered_on     = True  # 屏幕显示开关
@@ -250,17 +264,13 @@ class MatrixClock(WS2812, DateTime):
 		self.__task_auto_brightness  = lambda: self.__auto_brightness_cb()
 		self.__task_refresh_time     = lambda: self.__refresh_time_cb()
 		self.__task_refresh_calendar = lambda: self.__refresh_calendar_cb()
-
-		# try:
-		# 	__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
-		# 	# 连接 wifi 动画
-		# 	self.__animation.select_animation(Animation.ANIMATION_CONNECTING_1)
-		# 	self.__animation.set_color_step(50)
-		# except ImportError:
-		# 	# 配网指示动画
-		# 	self.__animation.select_animation(Animation.ANIMATION_CONNECTING_2)
+		self.__task_show_animation   = lambda: self.__show_animation_cb()
+		self.__task_switch_display   = lambda: self.__switch_display_cb()
 
 		self.switch_mode(self.mode)
+
+		self.__auto_brightness_cb()
+		self.__tasks.add_work(self.__task_auto_brightness, CONFIG.PERIOD.UPDATE_ADC_MS)
 
 	def start(self):
 		print(f'starting {MatrixClock.MODE_LIST[self.mode]} mode')
@@ -271,29 +281,45 @@ class MatrixClock(WS2812, DateTime):
 		self.__auto_brightness_cb()
 		self.__tasks.add_work(self.__task_auto_brightness, CONFIG.PERIOD.UPDATE_ADC_MS)
 
+		self.__started = True
+
 		if self.mode == MatrixClock.MODE_CLOCK:
 			self.__refresh_time_cb()
-		elif self.mode == MatrixClock.MODE_CLOCK_CALENDAR_1:
-			pass
 		elif self.mode == MatrixClock.MODE_CALENDAR_1:
 			self.__refresh_calendar_cb()
 		elif self.mode == MatrixClock.MODE_CALENDAR_2:
 			self.__refresh_calendar_cb()
 
 	def stop(self):
+		self.__started = False
+
 		self.__tasks.del_works()
 		self.clean()
 
+	def start_stop_menu(self, save:bool=True):
+		'''进入/退出菜单模式'''
+		if self.__menu_mode:
+			if save and self.mode != self.__last_menu:
+				self.switch_mode(self.__last_menu)
+				self.__output_matrix_mode_file()
+
+			self.__menu_mode = False
+			self.stop()
+			self.start()
+		else:
+			self.__menu_mode = True
+			self.stop()
+			self.switch_menu(True)
+
 	def show_content(self):
-		if not self.__powered_on:
+		'''显示当前工作模式下需要展示的内容'''
+		if not self.__powered_on or not self.__started:
 			return
 
 		print(f'showing {MatrixClock.MODE_LIST[self.mode]} content')
 
 		if self.mode == MatrixClock.MODE_CLOCK:
 			self.show_time()
-		elif self.mode == MatrixClock.MODE_CLOCK_CALENDAR_1:
-			pass
 		elif self.mode == MatrixClock.MODE_CALENDAR_1:
 			self.show_calendar_1()
 		elif self.mode == MatrixClock.MODE_CALENDAR_2:
@@ -308,55 +334,90 @@ class MatrixClock(WS2812, DateTime):
 	def switch_mode(self, mode):
 		'''切换工作模式，切换后需要手动调用 start() 函数'''
 		self.mode = mode
-		print(f'switching mode to {MatrixClock.MODE_LIST[self.mode]}')
+		suffix = f' for {self.format_ms(CONFIG.PERIOD.SWITCH_DISPLAY_MS)}' if self.mode != self.__display_mode else ''
+
+		print(f'switching to {MatrixClock.MODE_LIST[self.mode]} mode{suffix}')
 
 		self.stop()
 
 		self.__model_clock = None
 		self.__model_calendar = None
 
-		if self.mode in (MatrixClock.MODE_CLOCK, MatrixClock.MODE_CLOCK_CALENDAR_1):
+		if self.mode == MatrixClock.MODE_CLOCK:
 			self.__model_clock = ModelClock()
-
-		if self.mode in (MatrixClock.MODE_CLOCK_CALENDAR_1, MatrixClock.MODE_CALENDAR_1):
+		elif self.mode == MatrixClock.MODE_CALENDAR_1:
 			self.__model_calendar = ModelCalendar_1()
-
-		if self.mode == MatrixClock.MODE_CALENDAR_2:
+		elif self.mode == MatrixClock.MODE_CALENDAR_2:
 			self.__model_calendar = ModelCalendar_2()
 
 		gc.collect()
 
+	def switch_menu(self, first=False):
+		'''切换显示菜单'''
+		if not self.__menu_mode:
+			return
+
+		if not first:
+			self.__last_menu = (self.__last_menu + 1) % len(MatrixClock.MENU_LIST)
+
+		self.__animation.select_animation(
+			MatrixClock.MENU_LIST[self.__last_menu],
+			self.convert_color(CONFIG.COLORS.SKYBLUE)
+		)
+
+		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
+
+	def switch_display_mode(self):
+		'''临时切换显示时钟和台历1'''
+		self.__switch_display_cb()
+
+	def show_animation(self):
+		'''播放配网/联网简易动画'''
+		animation = None
+		colors = None
+
+		try:
+			__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
+
+			animation = Animation.CONNECT_WIFI
+			colors = self.convert_color(CONFIG.COLORS.WHITE)
+		except ImportError:
+			animation = Animation.CONFIG_WIFI
+
+			if WifiHandler.is_ble_mode():
+				colors = (
+					self.convert_color(CONFIG.COLORS.BLACK),
+					self.convert_color(CONFIG.COLORS.SKYBLUE)
+				)
+			else:
+				colors = (
+					self.convert_color(CONFIG.COLORS.BLACK),
+					self.convert_color(CONFIG.COLORS.LIGHTGREEN)
+				)
+
+		self.__animation.select_animation(animation, colors)
+		self.__tasks.add_work(self.__task_show_animation, self.__animation.period)
+
 	def show_blink(self):
+		'''用于整点报时的闪烁'''
 		if not self.__powered_on:
 			return
 
-		color = self.convert_color(CONFIG.COLORS.WHITE)
+		color = CONFIG.COLORS.WHITE
 
 		self.fill(color)
-		self.show()
 		utime.sleep(0.1)
 		self.clean()
 		utime.sleep(0.1)
 		self.fill(color)
-		self.show()
 		utime.sleep(0.1)
 		self.clean()
 		utime.sleep(0.1)
 		self.fill(color)
-		self.show()
 		utime.sleep(0.5)
 		self.clean()
 
-	def show_connecting(self):
-		'''
-		显示联网动画
-		'''
-		frame, color = self.__animation.get_frame_and_color()
-
-		for _ in range(len(frame)):
-			self.__neopixel[_] = (color, color, color) if frame[_] == '1' else self.__black
-
-		self.show()
+		self.show_content()
 
 	#region model clock related function
 	def show_time(self):
@@ -433,9 +494,11 @@ class MatrixClock(WS2812, DateTime):
 						self.show()
 
 			for count, index in enumerate(self.__model_clock.minute_ones_list):
-				# 感谢 Jason 提供的算法
-				# 假设有一组连续的数字，把它们每 n 个为一组，随意指定一个数字 x，求 x 在哪一组
-				# 公式为：int((x + 1) // (n + 0.1))
+				'''
+				假设有一组连续的数字，把它们每 n 个分为一组，随意指定一个数字 x，求 x 在哪一组？
+				公式为：int((x + 1) // (n + 0.1))
+				感谢 Jason 提供的算法
+				'''
 				minute_ones_color = minute_ones_colors[int((count + 1) // 3.1)]
 				self.__neopixel[index] = minute_ones_color if count < minute_ones else CONFIG.COLORS.BLACK
 	#endregion model clock related function
@@ -538,6 +601,34 @@ class MatrixClock(WS2812, DateTime):
 		'''刷新日历显示回调函数'''
 		self.show_content()
 		self.__tasks.add_work(self.__task_refresh_calendar, self.milliseconds_until_next_hour())
+
+	def __show_animation_cb(self):
+		'''显示联网动画'''
+		remains, frame, color = self.__animation.get_frame_and_color()
+
+		for index, bit in enumerate(self.__zfill_54bin(frame)):
+			self.__neopixel[index] = color if bit == '1' else CONFIG.COLORS.BLACK
+
+		self.show()
+
+		if not self.__animation.loops and remains == 0:
+			self.__tasks.del_work(self.__task_show_animation)
+
+	def __switch_display_cb(self):
+		if self.mode == MatrixClock.MODE_CALENDAR_2:
+			return
+
+		if self.mode == MatrixClock.MODE_CLOCK:
+			self.switch_mode(MatrixClock.MODE_CALENDAR_1)
+		elif self.mode == MatrixClock.MODE_CALENDAR_1:
+			self.switch_mode(MatrixClock.MODE_CLOCK)
+
+		self.start()
+
+		if self.mode == self.__display_mode:
+			self.__tasks.del_work(self.__task_switch_display)
+		else:
+			self.__tasks.add_work(self.__task_switch_display, CONFIG.PERIOD.SWITCH_DISPLAY_MS)
 	#endregion callbacks function
 
 
@@ -549,6 +640,10 @@ class MatrixClock(WS2812, DateTime):
 	def __zfile_15bin(self, value:int):
 		'''将整型转为 15 位二进制字符串'''
 		return f'{value:0>15b}'
+
+	def __zfill_54bin(self, value:int):
+		'''将整型转为 54 位二进制字符串'''
+		return f'{value:0>54b}'
 
 	def __output_matrix_mode_file(self):
 		with open(MatrixClock.MATRIX_MODE_FILENAME, 'w') as output:
@@ -573,25 +668,27 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 		time = utime.localtime()
 		# year, month, day, weekday, hour, minute, second, subsecond
 		RTC().datetime((self.__year, self.__month, self.__day, self.__weekday, self.__hour, minute, second, 0))
+		self.show_content()
 
 	def set_month(self, month):
 		self.now()
 		RTC().datetime((self.__year, month, self.__day, self.__weekday, self.__hour, self.__minute, self.__second, 0))
+		self.show_content()
 	#endregion tools function
 
 
 	#region class properties
 	@property
 	def mode(self) -> int:
-		return self.__current_mode
+		return self.__working_mode
 
 	@mode.setter
 	def mode(self, value:int):
-		'''获取/设置当前运行模式'''
+		'''获取/设置当前工作模式'''
 		if value not in MatrixClock.MODE_LIST.keys():
-			self.__current_mode = MatrixClock.MODE_CLOCK
+			self.__working_mode = MatrixClock.MODE_CLOCK
 
-		self.__current_mode = value
+		self.__working_mode = value
 
 	@property
 	def hourly_chime(self) -> bool:
@@ -606,18 +703,10 @@ mode = {self.mode} # {MatrixClock.MODE_LIST[self.mode]}
 
 
 if __name__ == '__main__':
-	from dispatcher import Dispatcher
+	matrix = MatrixClock()
+	matrix.show_animation()
 
 	if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode():
-		utime.sleep(1)
-
-		matrix = MatrixClock()
+		matrix.stop()
+		matrix.show_blink()
 		matrix.start()
-
-		# tasks = Dispatcher()
-		# task_refresh_time = lambda: matrix.refresh_time()
-		# tasks.add_work(task_refresh_time, 5000)
-		# test.set_brightness(20)
-		# test.set_hour(13)
-		# test.set_minute(39)
-		# test.show()
