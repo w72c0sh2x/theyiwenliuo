@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1.1'
-__version_info__ = (0, 1, 1)
+__version__ = '0.1.2'
+__version_info__ = (0, 1, 2)
 print('module matrix_clock version:', __version__)
 
 
@@ -403,7 +403,7 @@ class MatrixClock(WS2812, DateTime):
 		self.__sync_time_cb()
 
 	def check_update(self):
-		self.__show_animation(Animation.UPDATING, self.convert_color(CONFIG.COLORS.SKYBLUE))
+		self.__show_animation_async(Animation.UPDATING, self.convert_color(CONFIG.COLORS.SKYBLUE))
 
 		updater = OnlineUpdater(self.__online_update_cb)
 		updater.check()
