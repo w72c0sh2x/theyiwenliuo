@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-online-updater
 """
-__version__ = '0.2'
-__version_info__ = (0, 2)
+__version__ = '0.2.1'
+__version_info__ = (0, 2, 1)
 print('module update version:', __version__)
 
 
@@ -122,6 +122,7 @@ class OnlineUpdater(FileUtilities):
 			return
 
 		downloading_file_list = self.__download_updating_files(updating_file_list, retry)
+		del updating_file_list
 
 		update_success = True
 		for file in downloading_file_list.values():
@@ -140,7 +141,6 @@ class OnlineUpdater(FileUtilities):
 		else:
 			for file in downloading_file_list.values():
 				file.pop('url')
-				file.pop('temp_file')
 
 			if self.__result_cb is not None:
 				self.__result_cb(OnlineUpdater.ERROR_UPDATE_FAILED, 'update failed', downloading_file_list)			
@@ -163,7 +163,7 @@ class OnlineUpdater(FileUtilities):
 			if hasattr(import_file, 'files'):
 				result = import_file.files
 
-		return result
+		return result.copy()
 
 	def __analyse_update_files(self, files:dict) -> dict:
 		'''
@@ -178,9 +178,9 @@ class OnlineUpdater(FileUtilities):
 			if version is None or file['version'] > version:
 				file['full_path'] = full_path
 				file['local_version'] = version
-				result[key] = file
+				result[key] = file.copy()
 
-		return result
+		return result.copy()
 
 	def __download_updating_files(self, files:dict, retry:int) -> dict:
 		'''
@@ -201,7 +201,8 @@ class OnlineUpdater(FileUtilities):
 						file['message']   = 'download success'
 						file['temp_file'] = temp_file
 
-						result[key] = file
+						result[key] = file.copy()
+						print(f'[{temp_file}] download success!')
 						break
 					else:
 						file['result']  = OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED
@@ -212,9 +213,10 @@ class OnlineUpdater(FileUtilities):
 					file['message'] = 'download failed'
 					print(f'[{temp_file}] download failed!')
 
-				result[key] = file
+				result[key] = file.copy()
 
-		return result
+		gc.collect()
+		return result.copy()
 
 	def __get_file_version_info(self, filename:str) -> tuple:
 		'''
@@ -249,11 +251,13 @@ if __name__ == '__main__':
 	def update_callback(result:int, msg:str, files:dict):
 		print(f'- update result: {msg}')
 
-		if files:
-			for file in files.values():
-				if file['result'] == OnlineUpdater.ERROR_DOWNLOAD_SUCCESS:
+		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS:
+			if files:
+				for file in files.values():
 					print(f'    [{file["full_path"]}] up to date from {file["local_version"]} to {file["version"]}')
-				elif file['result'] in (OnlineUpdater.ERROR_DOWNLOAD_INCOMPLETED, OnlineUpdater.ERROR_DOWNLOAD_FAILED):
+		elif result == OnlineUpdater.ERROR_UPDATE_FAILED:
+			if files:
+				for file in files.values():
 					print(f'    [{file["full_path"]}] {file["message"]}')
 
 		if result == OnlineUpdater.ERROR_UPDATE_SUCCESS and files:
