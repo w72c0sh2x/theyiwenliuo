@@ -1,37 +1,42 @@
 """
-Copyright © 2021 Walkline Wang (https://walkline.wang)
+Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-from utils.utilities import Utilities
+__version__ = '0.1'
+__version_info__ = (0, 1)
+print('module config version:', __version__)
+
+
 import esp
 import esp32
 
-esp.osdebug(None) # 注释此行可显示详细调试信息
 
-esp32c3 = Utilities.is_esp32c3()
+# esp.osdebug(None) # 注释此行可显示详细调试信息
 
 # channel 0/1 for esp32c3
-if esp32c3: esp32.RMT.bitstream_channel(0)
+esp32.RMT.bitstream_channel(0)
 
 
 class Config(object):
+	TIMEZONE = 8
+
 	class BRIGHTNESS(object):
-		# 根据实际情况设置亮度最大值，取值范围 (1~200)
-		MAX = 150
+		# 根据实际情况设置亮度最大值百分比，取值范围 (1~100)
+		MAX = 80
 
 
 	class PINS(object):
-		ADC = 1
-		DIN = 7 if esp32c3 else 13
+		BRIGHTNESS_ADC = 1
+		DIN_MATRIX	   = 7
 
 
 	class KEYS(object):
-		KEY_1 = 2 if esp32c3 else 22
-		KEY_2 = 3 if esp32c3 else 21
-		KEY_3 = 4 if esp32c3 else 5
-		KEY_4 = 5 if esp32c3 else 4
-		KEY_TEST = 6 if esp32c3 else 12
-		KEY_BOOT = 9 if esp32c3 else 0
+		KEY_1	 = 2
+		KEY_2	 = 3
+		KEY_3	 = 4
+		KEY_4	 = 5
+		KEY_TEST = 6
+		KEY_BOOT = 9
 
 		KEY_LIST = (KEY_1, KEY_2, KEY_3, KEY_4, KEY_TEST, KEY_BOOT)
 
@@ -46,32 +51,45 @@ class Config(object):
 
 
 	class PERIOD(object):
-		CLOCK_MS = 1000 * 5
-		CLOCK_SYNC = int(3600 * 1000 / CLOCK_MS)
-		ADC_MS = 1000 * 3
+		UPDATE_ADC_MS = 500 # 光敏电阻检测间隔时间
 
 
-	class MATRIX(object):
+	class WS2812_MATRIX(object):
 		HEIGHT = ROWS = 6
 		WIDTH = COLUMNS = 9
-		VERTICAL = True
 
 
-	class Colors(object):
-		BLACK = (0, 0, 0)
-		WHITE = (255, 255, 255)
-		RED = (255, 0, 0)
-		BLUE = (2, 79, 195)
-		GREEN = (247, 24, 255)			# minute 7~9
-		GREEN_MEDIUM = (55, 231, 253)	# minute 4~6
-		GREEN_LOW = (164, 229, 1)		# minute 1~3
+	# https://www.colorhexa.com/color-names
+	# https://www.rapidtables.com/web/color/RGB_Color.html
+	class COLORS(object):
+		BLACK        = (0, 0, 0)
+		WHITE        = (255, 255, 255)
+		BLUE         = (2, 79, 195)
+		DARKGRAY     = (54, 54, 54)
+		SKYBLUE      = (9, 171, 255)
+		LIGHTGREEN   = (121, 234, 0)
+		YELLOWGREEN  = (154, 205, 50)
+		TURQUOISE    = (64, 224, 208)
+		MEDIUMORCHID = (186, 85, 211)
+		PINEGREEN    = (1, 121, 111)
+		ALMOSTBLACK  = (2, 2, 2)
+		ALMOSTGREEN  = (2, 3, 0)
 
+		# 时间显示相关颜色
+		TIME_HOUR          = WHITE
+		TIME_MINUTE_TENS   = SKYBLUE
+		TIME_MINUTE_ONES_1 = YELLOWGREEN
+		TIME_MINUTE_ONES_2 = TURQUOISE
+		TIME_MINUTE_ONES_3 = MEDIUMORCHID
 
-	# class WIFI(object):
-	# 	AP_SSID = 'Matrix Led Clock'
-	# 	AP_PASSWORD = ''
-	# 	AP_AUTHMODE = 0
-	# 	AP_HOST = "192.168.66.1"
-	# 	AP_PORT = 80
-	# 	AP_IFCONFIG = (AP_HOST, "255.255.255.0", AP_HOST, AP_HOST)
-	# 	AP_PORTAL = {'*': AP_HOST}
+		# 日期显示相关颜色
+		DATE_DAY        = WHITE
+		DATE_DAYS_BG    = ALMOSTBLACK
+		DATE_WEEKDAY    = LIGHTGREEN
+		DATE_WEEKDAY_BG = ALMOSTGREEN
+		DATE_MONTH      = SKYBLUE
+		DATE_MONTH_BG   = ALMOSTBLACK
+		DATE_MONTH_1    = YELLOWGREEN
+		DATE_MONTH_2    = TURQUOISE
+		DATE_MONTH_3    = MEDIUMORCHID
+		DATE_MONTH_4    = PINEGREEN
