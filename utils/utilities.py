@@ -1,5 +1,5 @@
 """
-Copyright © 2021 Walkline Wang (https://walkline.wang)
+Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 import utime
