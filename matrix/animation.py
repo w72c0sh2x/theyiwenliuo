@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-__version__ = '0.1'
-__version_info__ = (0, 1)
+__version__ = '0.1.1'
+__version_info__ = (0, 1, 1)
 print('module animation version:', __version__)
 
 
@@ -74,6 +74,7 @@ class Animation(object):
 		# 在线更新动画
 		UPDATING: {
 			'period': 100,
+			'loops' : True,
 			'frames': {
 				0:  0x1000000,     # 000000000000000000000000000001000000000000000000000000
 				1:  0x42040000,    # 000000000000000000000001000010000001000000000000000000
