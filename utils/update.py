@@ -2,8 +2,8 @@
 Copyright © 2023 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-online-updater
 """
-__version__ = '0.2.1'
-__version_info__ = (0, 2, 1)
+__version__ = '0.2.2'
+__version_info__ = (0, 2, 2)
 print('module update version:', __version__)
 
 
@@ -138,6 +138,7 @@ class OnlineUpdater(FileUtilities):
 
 		if update_success:
 			for file in downloading_file_list.values():
+				self.mkdirs(file['path'])
 				self.move(file['temp_file'], file['full_path'])
 				file.pop('url')
 				file.pop('temp_file')
