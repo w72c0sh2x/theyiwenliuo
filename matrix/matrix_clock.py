@@ -25,11 +25,11 @@ class MatrixClock(WS2812Matrix):
 
 	BRIGHTNESS_LEVEL = {
 		Photoresistor.LEVEL_1: 100,
-		Photoresistor.LEVEL_2: 75,
-		Photoresistor.LEVEL_3: 60,
-		Photoresistor.LEVEL_4: 45,
-		Photoresistor.LEVEL_5: 35,
-		Photoresistor.LEVEL_6: 15
+		Photoresistor.LEVEL_2: 95,
+		Photoresistor.LEVEL_3: 90,
+		Photoresistor.LEVEL_4: 85,
+		Photoresistor.LEVEL_5: 65,
+		Photoresistor.LEVEL_6: 45
 	}
 
 	__MODE_LAST = MODE_BLINK
