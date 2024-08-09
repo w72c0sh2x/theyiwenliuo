@@ -15,7 +15,8 @@ class WS2812Matrix(object):
 		self.width = width
 		self.height = height
 		self.__neopixel = NeoPixel(Pin(pin), self.width * self.height)
-		self.bright_percent = 0
+		self.__bright_percent = 0
+		self.__bright_max = self.__BRIGHT_MAX
 		self.brightness = 100
 
 	def clear(self):
@@ -24,7 +25,7 @@ class WS2812Matrix(object):
 
 	def fill(self, color:tuple(int, tuple)):
 		if isinstance(color, int):
-			color = int(color * self.bright_percent)
+			color = int(color * self.__bright_percent)
 			self.__neopixel.fill((color, color, color))
 		elif isinstance(color, tuple) and len(color) == 3:
 			self.__neopixel.fill(self.set_color(color))
@@ -41,12 +42,18 @@ class WS2812Matrix(object):
 	def set_color(self, color:tuple):
 		if isinstance(color, tuple) and len(color) == 3:
 			r, g, b = color
-			r = int(r * self.bright_percent)
-			g = int(g * self.bright_percent)
-			b = int(b * self.bright_percent)
+			r = int(r * self.__bright_percent)
+			g = int(g * self.__bright_percent)
+			b = int(b * self.__bright_percent)
 			color = (r, g, b)
 
 		return color
+
+	def set_bright_max(self, value=0.0):
+		if 1 < value <= 0:
+			self.__bright_max = self.__BRIGHT_MAX
+		else:
+			self.__bright_max = value
 
 	@property
 	def led_count(self):
@@ -70,7 +77,7 @@ class WS2812Matrix(object):
 		self.__brightness = value
 		value = value / 100
 
-		self.bright_percent = (self.__BRIGHT_MAX - self.__BRIGHT_MIN) * value + self.__BRIGHT_MIN * value
+		self.__bright_percent = (self.__bright_max - self.__BRIGHT_MIN) * value + self.__BRIGHT_MIN * value
 		# self.refresh()
 
 
