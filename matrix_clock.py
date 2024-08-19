@@ -18,7 +18,9 @@ class MatrixClock(WS2812MatrixClock):
 	MODE_LIGHT = 1
 	MODE_BLINK = 2
 	MODE_LIST = ['time', 'light', 'blink']
+
 	__MODE_LAST = MODE_BLINK
+	__LIGHT_BRIGHT_MAX = 0.6
 
 	def __init__(self, width=10, height=6, vertical=True):
 		super().__init__(width=width, height=height, vertical=vertical)
@@ -27,7 +29,6 @@ class MatrixClock(WS2812MatrixClock):
 		self.__buttons = Button(Config.KEYS.KEY_LIST, click_cb=self.__button_click_cb)
 		self.__timer = Timer(0)
 		self.__mode = self.MODE_TIME
-
 
 		self.__power_on = True
 		self.__timer_count = 0
@@ -46,9 +47,11 @@ class MatrixClock(WS2812MatrixClock):
 				except OSError as ose:
 					if str(ose) == '[Errno 116] ETIMEDOUT':
 						pass
+
+			print(f'cannot reach ntp host: {ntp.host}, sync time failed')
 		else:
-			print('no wifi connected')
-	
+			print('no wifi connected, sync time cancelled')
+
 	def show_time(self):
 		datetime = self.__rtc.datetime()
 		hour = datetime[4] + TIMEZONE
@@ -68,6 +71,25 @@ class MatrixClock(WS2812MatrixClock):
 
 		if self.__mode > self.__MODE_LAST:
 			self.__mode = 0
+
+	def start(self):
+		self.sync_time()
+		self.show_time()
+
+		self.__timer.init(
+			mode=Timer.PERIODIC,
+			period=1000 * 60,
+			callback=self.__timer_cb
+		)
+
+	def stop(self):
+		self.__timer.deinit()
+		self.__buttons.deinit()
+
+		self.__timer = None
+		self.__buttons = None
+		self.__rtc = None
+
 
 	def __button_click_cb(self, pin):
 		# print(f'Key {Config.KEYS.KEY_MAP[pin]} clicked')
@@ -90,24 +112,6 @@ class MatrixClock(WS2812MatrixClock):
 		if self.__timer_count >= 60:
 			self.__timer_count = 0
 			self.sync_time()
-
-	def start(self):
-		self.sync_time()
-		self.show_time()
-
-		self.__timer.init(
-			mode=Timer.PERIODIC,
-			period=1000 * 60,
-			callback=self.__timer_cb
-		)
-
-	def stop(self):
-		self.__timer.deinit()
-		self.__buttons.deinit()
-
-		self.__timer = None
-		self.__buttons = None
-		self.__rtc = None
 
 
 	@property
