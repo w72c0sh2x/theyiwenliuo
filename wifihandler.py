@@ -36,6 +36,30 @@ class WifiHandler(object):
 		station.active(active)
 
 	@staticmethod
+	def set_ap_mode():
+		from config import Config
+
+		access_point = network.WLAN(network.AP_IF)
+
+		access_point.active(False)
+		access_point.active(True)
+
+		essid = Config.WIFI.AP_SSID
+		password = Config.WIFI.AP_PASSWORD
+
+		access_point.ifconfig(Config.WIFI.AP_IFCONFIG)
+		access_point.config(
+			essid=essid,
+			password=password,
+			hidden=False,
+			authmode=Config.WIFI.AP_AUTHMODE
+			# dhcp_hostname=Config.WIFI.AP_HOSTNAME
+		)
+
+		print("\naccess point initialized:\n- essid    : {}\n- password : {}".format(essid, "(empty)" if len(password) == 0 else password))
+		print("\n", access_point.ifconfig())
+
+	@staticmethod
 	def set_sta_mode(essid, password, timeout_sec=600):
 		station = network.WLAN(network.STA_IF)
 

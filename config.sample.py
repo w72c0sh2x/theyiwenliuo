@@ -4,8 +4,13 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 class Config(object):
 	class WIFI(object):
-		SSID = ''
-		PASSWORD = ''
+		AP_SSID = 'Matrix Led Clock'
+		AP_PASSWORD = ''
+		AP_AUTHMODE = 0
+		AP_HOST = "192.168.66.1"
+		AP_PORT = 80
+		AP_IFCONFIG = (AP_HOST, "255.255.255.0", AP_HOST, AP_HOST)
+		AP_PORTAL = {'*': AP_HOST}
 
 
 	class PINS(object):
