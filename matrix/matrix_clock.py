@@ -4,8 +4,8 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-research
 """
 from machine import RTC, Timer
 import ntptime as ntp
-from ws2812 import WS2812MatrixClock
-from wifihandler import WifiHandler
+from .ws2812 import WS2812MatrixClock
+from utils.wifihandler import WifiHandler
 from drivers.button import Button
 from config import Config
 
@@ -22,7 +22,7 @@ class MatrixClock(WS2812MatrixClock):
 	__MODE_LAST = MODE_BLINK
 	__LIGHT_BRIGHT_MAX = 0.6
 
-	def __init__(self, width=10, height=6, vertical=True):
+	def __init__(self, width=9, height=6, vertical=True):
 		super().__init__(width=width, height=height, vertical=vertical)
 
 		self.__rtc = RTC()
