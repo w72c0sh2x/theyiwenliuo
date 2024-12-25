@@ -11,9 +11,13 @@ def success() -> bool:
 def info() -> tuple:
 	...
 
-
 '''
+from utime import sleep
+import network
 import smartconfig
+
+station = network.WLAN(network.STA_IF)
+station.active(True)
 
 smartconfig.start()
 
