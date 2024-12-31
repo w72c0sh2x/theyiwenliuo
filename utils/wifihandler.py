@@ -64,6 +64,7 @@ class WifiHandler(object):
 	def set_sta_mode(essid=None, password='', timeout_sec=600):
 		sleep_ms(1000)
 		station = network.WLAN(network.STA_IF)
+		station.active(True)
 
 		print("\nConnecting to network...")
 
@@ -74,7 +75,7 @@ class WifiHandler(object):
 					essid = sta_config.essid
 					password = sta_config.password
 				except ImportError:
-					print('start smartconfig...')
+					print('Start smartconfig...')
 					smartconfig.start()
 
 					while not smartconfig.success():
@@ -83,10 +84,8 @@ class WifiHandler(object):
 					essid, password = smartconfig.info()
 
 					WifiHandler.output_sta_config_file(essid, password)
-					print(f'got info, essid={essid}, password={password}')
+					print(f'-- Got info, essid={essid}, password={password}')
 
-			station.active(False)
-			station.active(True)
 			station.connect(essid, password)
 
 			retry_count = 0
@@ -125,7 +124,7 @@ class WifiHandler(object):
 	def output_sta_config_file(essid, password):
 		with open('sta_config.py', 'w') as output:
 			output.write(
-f'''automatic generated file
+f'''# automatic generated file
 essid = '{essid}'
 password = '{password}'
 '''
