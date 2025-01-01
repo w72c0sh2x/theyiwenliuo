@@ -3,6 +3,7 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-research
 """
 from machine import RTC, Timer
+from utime import sleep, localtime
 import ntptime as ntp
 from .ws2812 import WS2812MatrixClock
 from utils.wifihandler import WifiHandler
@@ -11,6 +12,7 @@ from config import Config
 
 TIMEZONE = 8
 ntp.host = 'ntp.ntsc.ac.cn'
+# ntp.host = 'ntp1.aliyun.com'
 
 
 class MatrixClock(WS2812MatrixClock):
@@ -43,10 +45,13 @@ class MatrixClock(WS2812MatrixClock):
 			for _ in range(retry):
 				try:
 					ntp.settime()
-					break
+					print(localtime())
+					return
 				except OSError as ose:
 					if str(ose) == '[Errno 116] ETIMEDOUT':
 						pass
+				
+				sleep(0.5)
 
 			print(f'cannot reach ntp host: {ntp.host}, sync time failed')
 		else:
