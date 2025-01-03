@@ -16,7 +16,7 @@
 
 项目中提供的固件已经集成了半血版`SmartConfig`，用微信或 app 配网时不会提示配网成功，只用于获取`ssid`和`password`，代码如下：
 
-```python
+```py
 from utime import sleep
 import network
 import smartconfig
