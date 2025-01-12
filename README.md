@@ -14,9 +14,9 @@
 
 `MicroPython`不提供`ESPTouch`相关功能，也就是`SmartConfig`和`AirKiss`，尝试了把`IDF`示例代码编译到固件中调用，目前可以使用`SmartConfig`方式进行配网，也就是使用乐鑫提供的 [EspTouch for Android](https://github.com/EspressifApp/EsptouchForAndroid/releases) 配网 ~~，但是不知道为何`AirKiss (微信)`一直不成功，既然还要安装 app 那不如还是用老办法，用网页进行配网吧。。。~~
 
-项目中提供的固件已经集成了半血版`SmartConfig`，用微信或 app 配网时不会提示配网成功，只用于获取`ssid`和`password`，代码如下：
+项目中提供的固件已经集成了半血版`SmartConfig`，用微信或 app 配网时不会提示配网成功，只用于获取`ssid`和`password`，使用方法和代码如下：
 
-```py
+```python
 from utime import sleep
 import network
 import smartconfig
@@ -26,10 +26,16 @@ station.active(True)
 
 smartconfig.start()
 
+# 关注 安信可科技 微信公众号，点击 应用开发→微信配网，或
+# 关注 乐鑫信息科技 微信公众号，点击 商铺→Airkiss 设备
+# 输入 Wi-Fi密码 后点击 连接，等待即可
+
 while not smartconfig.success():
     sleep(0.5)
 
 print(smartconfig.info())
+
+# 强制退出 微信配网 或 Airkiss 设备
 
 >>> ('ssid', 'password')
 ```
