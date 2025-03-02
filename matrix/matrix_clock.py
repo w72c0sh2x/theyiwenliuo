@@ -1,17 +1,16 @@
 """
 Copyright © 2021 Walkline Wang (https://walkline.wang)
-Gitee: https://gitee.com/walkline/micropython-ws2812-research
+Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import RTC, Timer
 from utime import sleep, localtime
 import ntptime as ntp
 from .ws2812 import WS2812MatrixClock
 from utils.wifihandler import WifiHandler
-from drivers.button import Button
-from config import Config
 
 TIMEZONE = 8
 ntp.host = 'ntp.ntsc.ac.cn'
+ntp.NTP_DELTA -= TIMEZONE * 60 * 60
 # ntp.host = 'ntp1.aliyun.com'
 
 
@@ -24,18 +23,16 @@ class MatrixClock(WS2812MatrixClock):
 	__MODE_LAST = MODE_BLINK
 	__LIGHT_BRIGHT_MAX = 0.6
 
-	def __init__(self, width=9, height=6, vertical=True):
+	def __init__(self, width, height, vertical):
 		super().__init__(width=width, height=height, vertical=vertical)
 
 		self.__rtc = RTC()
-		self.__buttons = Button(Config.KEYS.KEY_LIST, click_cb=self.__button_click_cb)
 		self.__timer = Timer(0)
 		self.__mode = self.MODE_TIME
 
-		self.__power_on = True
 		self.__timer_count = 0
 
-		self.clear()
+		self.clean()
 		self.set_brightness(20)
 
 	def sync_time(self, retry=3):
@@ -45,7 +42,8 @@ class MatrixClock(WS2812MatrixClock):
 			for _ in range(retry):
 				try:
 					ntp.settime()
-					print(localtime())
+					time = localtime()
+					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
 					return
 				except OSError as ose:
 					if str(ose) == '[Errno 116] ETIMEDOUT':
@@ -59,17 +57,28 @@ class MatrixClock(WS2812MatrixClock):
 
 	def show_time(self):
 		datetime = self.__rtc.datetime()
-		hour = datetime[4] + TIMEZONE
+		hour = datetime[4]
 		minute = datetime[5]
 
 		self.set_hour(hour)
 		self.set_minute(minute)
-		self.show()
+		
+		if self.powered_on:
+			self.show()
+
+	def power_on(self):
+		self.show_time()
+
+	def power_off(self):
+		self.clean()
 
 	def switch_power(self):
-		self.__power_on = not self.__power_on
+		'''
+		开启/关闭内容显示
+		'''
+		self.powered_on = not self.powered_on
 
-		self.power_on() if self.__power_on else self.power_off()
+		self.power_on() if self.powered_on else self.power_off()
 
 	def switch_mode(self):
 		self.__mode += 1
@@ -83,41 +92,23 @@ class MatrixClock(WS2812MatrixClock):
 
 		self.__timer.init(
 			mode=Timer.PERIODIC,
-			period=1000 * 60,
+			period=1000 * 10,
 			callback=self.__timer_cb
 		)
 
 	def stop(self):
 		self.__timer.deinit()
-		self.__buttons.deinit()
-
 		self.__timer = None
-		self.__buttons = None
 		self.__rtc = None
-
-
-	def __button_click_cb(self, pin):
-		# print(f'Key {Config.KEYS.KEY_MAP[pin]} clicked')
-
-		if pin == Config.KEYS.KEY_1:
-			self.switch_mode()
-		elif pin == Config.KEYS.KEY_2:
-			pass
-		elif pin == Config.KEYS.KEY_3:
-			self.set_brightness(self.brightness - 20)
-			self.show_time()
-		elif pin == Config.KEYS.KEY_4:
-			self.switch_power()
 
 	def __timer_cb(self, _):
 		self.show_time()
 
 		self.__timer_count += 1
 
-		if self.__timer_count >= 60:
+		if self.__timer_count >= 360:
 			self.__timer_count = 0
 			self.sync_time()
-
 
 	@property
 	def mode(self):
