@@ -2,29 +2,35 @@
 Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
+class Utilities(object):
+	@staticmethod
+	def is_esp32c3():
+		from machine import Pin
+		from os import uname
+
+		if uname()[0] == 'esp32':
+			try:
+				Pin(22, Pin.OUT)
+				return False
+			except ValueError:
+				return True
+
+esp32c3 = Utilities.is_esp32c3()
+
+
 class Config(object):
-	# class WIFI(object):
-	# 	AP_SSID = 'Matrix Led Clock'
-	# 	AP_PASSWORD = ''
-	# 	AP_AUTHMODE = 0
-	# 	AP_HOST = "192.168.66.1"
-	# 	AP_PORT = 80
-	# 	AP_IFCONFIG = (AP_HOST, "255.255.255.0", AP_HOST, AP_HOST)
-	# 	AP_PORTAL = {'*': AP_HOST}
-
-
 	class PINS(object):
 		ADC = 1
-		DIN = 7
+		DIN = 7 if esp32c3 else 13
 
 
 	class KEYS(object):
-		KEY_1 = 2
-		KEY_2 = 3
-		KEY_3 = 4
-		KEY_4 = 5
-		KEY_TEST = 6
-		KEY_BOOT = 9
+		KEY_1 = 2 if esp32c3 else 22
+		KEY_2 = 3 if esp32c3 else 21
+		KEY_3 = 4 if esp32c3 else 5
+		KEY_4 = 5 if esp32c3 else 4
+		KEY_TEST = 6 if esp32c3 else 0
+		KEY_BOOT = 9 if esp32c3 else 0
 
 		KEY_LIST = (KEY_1, KEY_2, KEY_3, KEY_4, KEY_TEST, KEY_BOOT)
 
@@ -52,3 +58,12 @@ class Config(object):
 		GREEN = (0, 255, 0)
 		GREEN_MEDIUM = (128, 128, 0)
 		GREEN_LOW = (0, 60, 60)
+
+	# class WIFI(object):
+	# 	AP_SSID = 'Matrix Led Clock'
+	# 	AP_PASSWORD = ''
+	# 	AP_AUTHMODE = 0
+	# 	AP_HOST = "192.168.66.1"
+	# 	AP_PORT = 80
+	# 	AP_IFCONFIG = (AP_HOST, "255.255.255.0", AP_HOST, AP_HOST)
+	# 	AP_PORTAL = {'*': AP_HOST}
