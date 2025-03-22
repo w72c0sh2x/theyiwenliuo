@@ -5,6 +5,7 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 import network
 from utime import sleep_ms
 import smartconfig
+from .utilities import Utilities
 
 __station_status_message = {
 	network.STAT_IDLE: "network idle",
@@ -83,7 +84,7 @@ class WifiHandler(object):
 					
 					essid, password = smartconfig.info()
 
-					WifiHandler.output_sta_config_file(essid, password)
+					Utilities.output_sta_config_file(essid, password)
 					print(f'-- Got info, essid={essid}, password={password}')
 
 			station.connect(essid, password)
@@ -119,13 +120,3 @@ class WifiHandler(object):
 		station = network.WLAN(network.STA_IF)
 
 		return station.isconnected()
-
-	@staticmethod
-	def output_sta_config_file(essid, password):
-		with open('sta_config.py', 'w') as output:
-			output.write(
-f'''# automatic generated file
-essid = '{essid}'
-password = '{password}'
-'''
-			)

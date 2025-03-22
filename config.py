@@ -2,18 +2,7 @@
 Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-class Utilities(object):
-	@staticmethod
-	def is_esp32c3():
-		from machine import Pin
-		from os import uname
-
-		if uname()[0] == 'esp32':
-			try:
-				Pin(22, Pin.OUT)
-				return False
-			except ValueError:
-				return True
+from utils.utilities import Utilities
 
 esp32c3 = Utilities.is_esp32c3()
 
