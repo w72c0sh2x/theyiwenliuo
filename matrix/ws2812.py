@@ -172,16 +172,16 @@ class WS2812MatrixClock(WS2812Matrix):
 
 		start = self.__MINUTE_TENS_PLACE_COLUMN * self.__height
 
-		if minute_tens == 0:
-			for index in range(start, start + self.__height):
-				self.__neopixel[index] = self.__black
+		# if minute_tens == 0:
+		for index in range(start, start + self.__height):
+			self.__neopixel[index] = self.__black
 
 		for index in range(minute_tens):
 			self.__neopixel[start + index] = self.__blue
 
-		if minute_ones == 0:
-			for index in self.__MINUTE_ONES_PLACE_LIST:
-				self.__neopixel[index] = self.__black
+		# if minute_ones == 0:
+		for index in self.__MINUTE_ONES_PLACE_LIST:
+			self.__neopixel[index] = self.__black
 
 		count = 0
 		for index in range(minute_ones):
