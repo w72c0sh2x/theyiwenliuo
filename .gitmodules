@@ -1,3 +1,0 @@
-[submodule "drivers"]
-	path = drivers
-	url = https://gitee.com/walkline/micropython-drivers.git
