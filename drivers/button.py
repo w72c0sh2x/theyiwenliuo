@@ -60,8 +60,8 @@ class Button(object):
 				self.button_list.append(Pin(_, Pin.IN, Pin.PULL_UP))
 				self.__pin_list.append(_)
 				self.__button_holding_list.append(False) # true: holding, false: releasing
-		 		self.__button_status_list.append(False) # true: holded, false: released
-		 		self.__button_pressed_list.append(False) # true: pressed once, false: never pressed
+				self.__button_status_list.append(False) # true: holded, false: released
+				self.__button_pressed_list.append(False) # true: pressed once, false: never pressed
 				self.__last_ticks_list.append(ticks_ms())
 		else:
 			self.button_list.append(Pin(pin, Pin.IN, Pin.PULL_UP))
