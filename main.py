@@ -8,6 +8,7 @@ from utils.utilities import Utilities
 from utils.wifihandler import WifiHandler
 from drivers.button import Button
 from drivers.photoresistor import Photoresistor
+from utils.dispatcher import Dispatcher
 
 clock = None
 buttons = None
@@ -54,7 +55,8 @@ def init_buttons():
 		press_cb=buttons_press_cb
 	)
 
-def adc_timer_cb(timer):
+# 定时器回调函数
+def auto_brightness():
 	global clock, adc, last_adc_level
 
 	adc_level = adc.level
@@ -81,12 +83,17 @@ if __name__ == '__main__':
 			clock.start()
 
 			adc = Photoresistor(Config.PINS.ADC)
-			adc_timer = Timer(8)
-			adc_timer.init(
-				mode=Timer.PERIODIC,
-				period=1000 * 3,
-				callback=adc_timer_cb
-			)
+
+			tasks = Dispatcher()
+			tasks.add_work(auto_brightness, 1000 * 3)
+			tasks.add_work(clock.refresh_time, 1000 * 10)
+
+			# adc_timer = Timer(8)
+			# adc_timer.init(
+			# 	mode=Timer.PERIODIC,
+			# 	period=1000 * 3,
+			# 	callback=adc_timer_cb
+			# )
 		else:
 			Utilities.hard_reset()
 	except KeyboardInterrupt:

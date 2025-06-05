@@ -2,7 +2,7 @@
 Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-from machine import RTC, Timer
+from machine import RTC # , Timer
 from utime import sleep, localtime
 import ntptime as ntp
 from .ws2812 import WS2812MatrixClock
@@ -27,7 +27,7 @@ class MatrixClock(WS2812MatrixClock):
 		super().__init__(width=width, height=height, vertical=vertical)
 
 		self.__rtc = RTC()
-		self.__timer = Timer(0)
+		# self.__timer = Timer(0)
 		self.__mode = self.MODE_TIME
 
 		self.__timer_count = 0
@@ -90,18 +90,19 @@ class MatrixClock(WS2812MatrixClock):
 		self.sync_time()
 		self.show_time()
 
-		self.__timer.init(
-			mode=Timer.PERIODIC,
-			period=1000 * 10,
-			callback=self.__timer_cb
-		)
+		# self.__timer.init(
+		# 	mode=Timer.PERIODIC,
+		# 	period=1000 * 10,
+		# 	callback=self.__timer_cb
+		# )
 
 	def stop(self):
-		self.__timer.deinit()
-		self.__timer = None
+		# self.__timer.deinit()
+		# self.__timer = None
 		self.__rtc = None
 
-	def __timer_cb(self, _):
+	# 定时器回调函数
+	def refresh_time(self):
 		self.show_time()
 
 		self.__timer_count += 1
