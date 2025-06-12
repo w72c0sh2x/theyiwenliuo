@@ -13,7 +13,8 @@ from utils.dispatcher import Dispatcher
 clock = None
 buttons = None
 adc = None
-adc_timer = None
+# adc_timer = None
+tasks = None
 last_adc_level = 0
 
 BRIGHTNESS_LEVEL = {
@@ -100,4 +101,5 @@ if __name__ == '__main__':
 		if clock: clock.stop()
 		if buttons: buttons.deinit()
 		if adc: adc = None
-		if adc_timer: adc_timer.deinit()
+		# if adc_timer: adc_timer.deinit()
+		if tasks: tasks.deinit()
