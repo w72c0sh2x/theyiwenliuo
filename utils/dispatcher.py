@@ -1,6 +1,6 @@
 """
 Copyright © 2021 Walkline Wang (https://walkline.wang)
-Gitee: https://gitee.com/walkline/micropython-esp32-dev-board
+Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Timer
 
