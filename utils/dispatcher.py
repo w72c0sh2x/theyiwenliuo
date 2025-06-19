@@ -22,6 +22,10 @@ class Dispatcher(object):
 			callback=self.__worker_callback
 		)
 
+	def deinit(self):
+		self.__timer.deinit()
+		self.__workers = {}
+
 	def  __worker_callback(self, _):
 		self.__time_counter += 1
 
