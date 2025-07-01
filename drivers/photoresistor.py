@@ -16,13 +16,15 @@ class Photoresistor(object):
 	LEVEL_3 = 3
 	LEVEL_4 = 4
 	LEVEL_5 = 5
+	LEVEL_6 = 6
 
 	LEVELS_RANGE = {
-		LEVEL_1: [0, 300],
-		LEVEL_2: [301, 800],
-		LEVEL_3: [801, 2000],
-		LEVEL_4: [2001, 3000],
-		LEVEL_5: [3001, 4095],
+		LEVEL_1: [0, 450],
+		LEVEL_2: [451, 900],
+		LEVEL_3: [901, 1300],
+		LEVEL_4: [1301, 1900],
+		LEVEL_5: [1901, 3000],
+		LEVEL_6: [3001, 4095]
 	}
 
 	def __init__(self, pin:int):
@@ -31,13 +33,13 @@ class Photoresistor(object):
 
 	@property
 	def level(self):
-		samples = []
+		sample_avg = 0
 
-		for _ in range(3):
-			samples.append(self.__adc.read())
-			sleep(0.1)
-		
-		sample_avg = int((samples[0] + samples[1] + samples[2]) / 3)
+		for _ in range(20):
+			sample_avg += self.__adc.read()
+			sleep(0.05)
+
+		sample_avg = int(sample_avg / 20)
 
 		for level, level_range in Photoresistor.LEVELS_RANGE.items():
 			if level_range[0] <= sample_avg <= level_range[1]:
@@ -49,6 +51,6 @@ class Photoresistor(object):
 if __name__ == '__main__':
 	adc = Photoresistor(Config.PINS.ADC)
 
-	for _ in range(10):
+	for _ in range(10000):
 		print(f'adc level: {adc.level}')
-		sleep(1)
+		sleep(0.2)
