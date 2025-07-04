@@ -33,6 +33,12 @@ class Config(object):
 		}
 
 
+	class PERIOD(object):
+		CLOCK_MS = 1000 * 5
+		CLOCK_SYNC = int(3600 * 1000 / CLOCK_MS)
+		ADC_MS = 1000 * 3
+
+
 	class MATRIX(object):
 		HEIGHT = ROWS = 6
 		WIDTH = COLUMNS = 9
