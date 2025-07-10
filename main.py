@@ -3,7 +3,7 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-research
 """
 from config import Config
-from machine import Timer
+from utime import sleep
 from utils.utilities import Utilities
 from utils.wifihandler import WifiHandler
 from drivers.button import Button
@@ -13,7 +13,6 @@ from utils.dispatcher import Dispatcher
 clock = None
 buttons = None
 adc = None
-# adc_timer = None
 tasks = None
 last_adc_level = 0
 
@@ -21,8 +20,9 @@ BRIGHTNESS_LEVEL = {
 	Photoresistor.LEVEL_1: 95,
 	Photoresistor.LEVEL_2: 75,
 	Photoresistor.LEVEL_3: 60,
-	Photoresistor.LEVEL_4: 35,
-	Photoresistor.LEVEL_5: 20
+	Photoresistor.LEVEL_4: 45,
+	Photoresistor.LEVEL_5: 35,
+	Photoresistor.LEVEL_6: 25
 }
 
 
@@ -84,22 +84,18 @@ if __name__ == '__main__':
 			clock.start()
 
 			adc = Photoresistor(Config.PINS.ADC)
+			auto_brightness()
 
 			tasks = Dispatcher()
-			tasks.add_work(auto_brightness, 1000 * 3)
-			tasks.add_work(clock.refresh_time, 1000 * 10)
+			tasks.add_work(auto_brightness, Config.PERIOD.ADC_MS)
+			tasks.add_work(clock.refresh_time, Config.PERIOD.CLOCK_MS)
 
-			# adc_timer = Timer(8)
-			# adc_timer.init(
-			# 	mode=Timer.PERIODIC,
-			# 	period=1000 * 3,
-			# 	callback=adc_timer_cb
-			# )
+			while True:
+				sleep(0.5)
 		else:
 			Utilities.hard_reset()
 	except KeyboardInterrupt:
 		if clock: clock.stop()
 		if buttons: buttons.deinit()
 		if adc: adc = None
-		# if adc_timer: adc_timer.deinit()
 		if tasks: tasks.deinit()
