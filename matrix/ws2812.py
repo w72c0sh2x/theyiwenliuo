@@ -88,9 +88,6 @@ class WS2812Matrix(object):
 
 	@brightness.setter
 	def brightness(self, value:int):
-		if not self.powered_on:
-			return
-
 		if not isinstance(value, int) or value <= 10:
 			value = 100
 		elif value >= 100:
