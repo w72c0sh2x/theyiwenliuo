@@ -49,10 +49,11 @@ class Config(object):
 		BLACK = (0, 0, 0)
 		WHITE = (128, 128, 128)
 		RED = (255, 0, 0)
-		BLUE = (0, 0, 255)
+		BLUE = (60, 60, 255)
 		GREEN = (0, 255, 0)
 		GREEN_MEDIUM = (128, 128, 0)
 		GREEN_LOW = (0, 60, 60)
+
 
 	# class WIFI(object):
 	# 	AP_SSID = 'Matrix Led Clock'
