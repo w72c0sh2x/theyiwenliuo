@@ -64,12 +64,12 @@ def auto_brightness():
 
 	if last_adc_level != adc_level:
 		last_adc_level = adc_level
-		print(f'adc level: {adc_level}')
 	else:
 		return
 
 	clock.set_brightness(BRIGHTNESS_LEVEL[adc_level])
 	clock.show_time()
+	print(f'set brightness level to {adc_level}')
 
 
 if __name__ == '__main__':
