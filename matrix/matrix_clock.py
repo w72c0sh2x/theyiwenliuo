@@ -99,6 +99,7 @@ class MatrixClock(WS2812MatrixClock):
 		self.__timer_count += 1
 
 		if self.__timer_count >= Config.PERIOD.CLOCK_SYNC:
+			print('sync time per 1 hour')
 			self.__timer_count = 0
 			self.sync_time()
 
