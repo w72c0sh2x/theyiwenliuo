@@ -45,7 +45,7 @@ class Photoresistor(object):
 			if level_range[0] <= sample_avg <= level_range[1]:
 				return level
 
-		return False
+		return Photoresistor.LEVEL_6
 
 
 if __name__ == '__main__':
