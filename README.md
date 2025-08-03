@@ -4,11 +4,15 @@
 
 ### 项目介绍
 
+基于`安信可ESP-C3-12F`模组，搭配`WS2812`矩阵灯珠，用于显示当前时间
+
 ### 硬件介绍
 
 硬件电路使用 [立创EDA](https://lceda.cn/) 设计，完全适合新手小白使用，PCB 板是在 [深圳嘉立创](https://www.jlc.com/) 下单打样的，本着薅羊毛的原则，板子尺寸限制在了`10cm * 10cm`以内，原理图文件可以在 [立创开源硬件平台](https://oshwhub.com/Walkline/kou-sou-dian-zhen-shi-zhong) 查看，这里不再赘述
 
 > 主控模组选用了`安信可 ESP-C3-12F`，并非常用的`ESP32-WROOM-32D`
+
+### 软件介绍
 
 ### 关于配网
 
