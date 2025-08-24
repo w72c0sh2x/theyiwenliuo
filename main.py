@@ -44,7 +44,7 @@ if __name__ == '__main__':
 			press_cb=buttons_press_cb
 		)
 
-		if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode():
+		if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
 			from matrix.matrix_clock import MatrixClock
 
 			clock = MatrixClock(Config.MATRIX.WIDTH, Config.MATRIX.HEIGHT)
