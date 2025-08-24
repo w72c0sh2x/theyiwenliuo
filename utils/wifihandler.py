@@ -84,7 +84,6 @@ class WifiHandler(object):
 					
 					essid, password = smartconfig.info()
 
-					Utilities.output_sta_config_file(essid, password)
 					print(f'-- Got info, essid={essid}, password={password}')
 
 			station.connect(essid, password)
@@ -112,6 +111,9 @@ class WifiHandler(object):
 
 		print(__station_status_message[status_code])
 		print(station.ifconfig())
+
+		if status_code == WifiHandler.STATION_CONNECTED:
+			Utilities.output_sta_config_file(essid, password)
 
 		return status_code
 
