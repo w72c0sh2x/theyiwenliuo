@@ -65,7 +65,10 @@ class WifiHandler(object):
 	def set_sta_mode(essid=None, password='', timeout_sec=600):
 		sleep_ms(1000)
 		station = network.WLAN(network.STA_IF)
+		station.active(False)
 		station.active(True)
+
+		using_smartconfig = False
 
 		print("\nConnecting to network...")
 
@@ -83,6 +86,7 @@ class WifiHandler(object):
 						sleep_ms(500)
 					
 					essid, password = smartconfig.info()
+					using_smartconfig = True
 
 					print(f'-- Got info, essid={essid}, password={password}')
 
@@ -112,7 +116,7 @@ class WifiHandler(object):
 		print(__station_status_message[status_code])
 		print(station.ifconfig())
 
-		if status_code == WifiHandler.STATION_CONNECTED:
+		if status_code == WifiHandler.STATION_CONNECTED and using_smartconfig:
 			Utilities.output_sta_config_file(essid, password)
 
 		return status_code
