@@ -9,7 +9,7 @@ class Dispatcher(object):
 	'''
 	定时器任务调度器
 	'''
-	__DEFAULT_PERIOD = 20
+	__DEFAULT_PERIOD = 100
 
 	def __init__(self, timer_id=0):
 		self.__workers = {}
@@ -33,7 +33,7 @@ class Dispatcher(object):
 			self.__time_counter = 1
 
 		for worker in self.__workers.values():
-			if (self.__time_counter * self.__DEFAULT_PERIOD) % worker.period == 0:
+			if (self.__time_counter * self.__DEFAULT_PERIOD * 2) % worker.period == 0:
 				worker.do_work()
 
 	def add_work(self, work, period=100):
