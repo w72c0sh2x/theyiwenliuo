@@ -90,8 +90,8 @@ class MatrixClock(WS2812Matrix):
 				except OSError as ose:
 					if str(ose) == '[Errno 116] ETIMEDOUT':
 						pass
-				
-				sleep(0.5)
+
+				sleep(0.2)
 
 			print(f'cannot reach ntp host: {ntp.host}, sync time failed')
 		else:
@@ -138,14 +138,14 @@ class MatrixClock(WS2812Matrix):
 
 	# 定时器回调函数
 	def refresh_time(self):
-		self.show_time()
-
 		self.__timer_count += 1
 
 		if self.__timer_count >= Config.PERIOD.CLOCK_SYNC:
 			print('sync time per 1 hour')
 			self.__timer_count = 0
 			self.sync_time()
+
+		self.show_time()
 
 	# 定时器回调函数
 	def auto_brightness(self):
