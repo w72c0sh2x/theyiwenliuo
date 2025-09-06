@@ -3,6 +3,7 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Timer
+import _thread
 
 
 class Dispatcher(object):
@@ -33,8 +34,9 @@ class Dispatcher(object):
 			self.__time_counter = 1
 
 		for worker in self.__workers.values():
-			if (self.__time_counter * self.__DEFAULT_PERIOD * 2) % worker.period == 0:
-				worker.do_work()
+			if (self.__time_counter * self.__DEFAULT_PERIOD) % worker.period == 0:
+				_thread.start_new_thread(worker.do_work, ())
+				sleep(0.02)
 
 	def add_work(self, work, period=100):
 		'''
@@ -60,3 +62,23 @@ class Worker(object):
 
 	def do_work(self):
 		self.__work()
+
+
+if __name__ == '__main__':
+	from machine import RTC
+	from utime import sleep
+
+	def task1():
+		print(f'\t{rtc.datetime()[4:7]} task 1 (3)')
+		sleep(0.8)
+	
+	def task2():
+		print(f'{rtc.datetime()[4:7]} task 2 (5)')
+		sleep(0.5)
+
+	rtc = RTC()
+	rtc.init((2000, 1, 1, 0, 0, 0, 0, 8))
+
+	tasks = Dispatcher()
+	tasks.add_work(task1, 3000)
+	tasks.add_work(task2, 5000)
