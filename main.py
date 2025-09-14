@@ -8,6 +8,9 @@ from utils.utilities import Utilities
 from utils.wifihandler import WifiHandler
 from drivers.button import Button
 from utils.dispatcher import Dispatcher
+import sys
+
+sys.path.insert(0, '/')
 
 clock = None
 buttons = None
