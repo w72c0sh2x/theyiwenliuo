@@ -3,6 +3,7 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Timer
+from utime import sleep
 import _thread
 
 
@@ -34,16 +35,19 @@ class Dispatcher(object):
 			self.__time_counter = 1
 
 		for worker in self.__workers.values():
-			if (self.__time_counter * self.__DEFAULT_PERIOD) % worker.period == 0:
-				_thread.start_new_thread(worker.do_work, ())
-				sleep(0.02)
+			if (self.__time_counter * self.__DEFAULT_PERIOD * 2) % worker.period == 0:
+				if worker.thread:
+					_thread.start_new_thread(worker.do_work, ())
+					sleep(0.02)
+				else:
+					worker.do_work()
 
-	def add_work(self, work, period=100):
+	def add_work(self, work, period=100, thread=False):
 		'''
 		添加一个调度任务
 		'''
 		if callable(work):
-			self.__workers[id(work)] = Worker(period, work)
+			self.__workers[id(work)] = Worker(work, period, thread)
 		else:
 			print('work must be a function')
 
@@ -52,13 +56,18 @@ class Worker(object):
 	'''
 	定时器任务
 	'''
-	def __init__(self, period, work):
-		self.__period = period
+	def __init__(self, work, period, thread=False):
 		self.__work = work
+		self.__period = period
+		self.__thread = thread
 
 	@property
 	def period(self):
 		return self.__period
+
+	@property
+	def thread(self):
+		return self.__thread
 
 	def do_work(self):
 		self.__work()
