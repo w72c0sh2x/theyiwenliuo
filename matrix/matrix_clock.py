@@ -77,7 +77,7 @@ class MatrixClock(WS2812Matrix):
 		self.clean()
 		self.set_brightness(20)
 
-	def sync_time(self, retry=3):
+	def sync_time(self, retry=5):
 		if WifiHandler.is_sta_connected():
 			print('sync time')
 
@@ -90,12 +90,16 @@ class MatrixClock(WS2812Matrix):
 				except OSError as ose:
 					if str(ose) == '[Errno 116] ETIMEDOUT':
 						pass
+					else:
+						print(ose)
+				except Exception as e:
+					print(e)
 
 				sleep(0.2)
 
-			print(f'cannot reach ntp host: {ntp.host}, sync time failed')
+			print(f'Cannot reach ntp host: {ntp.host}, sync time failed')
 		else:
-			print('no wifi connected, sync time cancelled')
+			print('No wifi connected, sync time cancelled')
 
 	def show_time(self):
 		datetime = self.__rtc.datetime()
