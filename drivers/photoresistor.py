@@ -37,7 +37,7 @@ class Photoresistor(object):
 
 		for _ in range(20):
 			sample_avg += self.__adc.read()
-			sleep(0.05)
+			# sleep(0.05)
 
 		sample_avg = int(sample_avg / 20)
 
