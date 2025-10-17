@@ -16,6 +16,7 @@ class WS2812Matrix(object):
 		self.__height = height
 		self.__neopixel = NeoPixel(Pin(pin), self.__width * self.__height)
 		self.__bright_percent = 0
+		self.__bright_min = self.__BRIGHT_MIN
 		self.__bright_max = self.__BRIGHT_MAX
 		self.__brightness = 100
 		self.powered_on = True
@@ -65,7 +66,7 @@ class WS2812Matrix(object):
 
 		return color
 
-	def set_bright_max(self, value=0.0):
+	def set_bright_max(self, value):
 		'''
 		设置亮度最大值，取值范围 0.0~1.0
 		'''
@@ -73,6 +74,12 @@ class WS2812Matrix(object):
 			self.__bright_max = self.__BRIGHT_MAX
 		else:
 			self.__bright_max = value
+		
+	def set_bright_min(self, value):
+		if self.__bright_max <= value <= 0:
+			self.__bright_min = self.__BRIGHT_MIN
+		else:
+			self.__bright_min = value
 
 	@property
 	def led_count(self):
@@ -96,4 +103,4 @@ class WS2812Matrix(object):
 		self.__brightness = value
 		value = value / 100
 
-		self.__bright_percent = (self.__bright_max - self.__BRIGHT_MIN) * value + self.__BRIGHT_MIN * value
+		self.__bright_percent = (self.__bright_max - self.__bright_min) * value + self.__bright_min * value
