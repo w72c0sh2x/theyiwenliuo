@@ -162,7 +162,7 @@ class MatrixClock(WS2812Matrix):
 
 		self.set_brightness(self.BRIGHTNESS_LEVEL[adc_level])
 		self.show_time()
-		print(f'set brightness level to {adc_level}')
+		print(f'set brightness level to {adc_level} ({self.__bright_percent * 100}%)')
 
 	def set_brightness(self, value):
 		self.brightness = value
