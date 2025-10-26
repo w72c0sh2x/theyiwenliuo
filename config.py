@@ -8,6 +8,10 @@ esp32c3 = Utilities.is_esp32c3()
 
 
 class Config(object):
+	class BRIGHTNESS(object):
+		MAX = 1.0 # 根据实际情况设置亮度最大值，取值范围 (0.0 ~ 1.0)
+
+
 	class PINS(object):
 		ADC = 1
 		DIN = 7 if esp32c3 else 13
