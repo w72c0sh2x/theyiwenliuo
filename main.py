@@ -53,11 +53,12 @@ if __name__ == '__main__':
 			clock = MatrixClock(Config.MATRIX.WIDTH, Config.MATRIX.HEIGHT)
 			clock.mode = MatrixClock.MODE_TIME
 			clock.start()
+			clock.set_bright_max(Config.BRIGHTNESS.MAX)
 			clock.auto_brightness()
 
 			tasks = Dispatcher()
-			tasks.add_work(clock.refresh_time, Config.PERIOD.CLOCK_MS)
-			tasks.add_work(clock.auto_brightness, Config.PERIOD.ADC_MS)
+			tasks.add_work(clock.refresh_time, Config.PERIOD.CLOCK_MS, thread=True)
+			tasks.add_work(clock.auto_brightness, Config.PERIOD.ADC_MS, thread=True)
 
 			while True:
 				sleep(0.5)
