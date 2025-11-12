@@ -6,6 +6,8 @@
 
 基于`安信可ESP-C3-12F`模组，搭配`WS2812`矩阵灯珠，用于显示当前时间
 
+![](./images/photo.png)
+
 ### 硬件介绍
 
 硬件电路使用 [立创EDA](https://lceda.cn/) 设计，完全适合新手小白使用，PCB 板是在 [深圳嘉立创](https://www.jlc.com/) 下单打样的，本着薅羊毛的原则，板子尺寸限制在了`10cm * 10cm`以内，原理图文件可以在 [立创开源硬件平台](https://oshwhub.com/Walkline/kou-sou-dian-zhen-shi-zhong) 查看，这里不再赘述
@@ -85,7 +87,52 @@ print(smartconfig.info())
 
 ### 如何使用
 
+> 无论是调试代码还是烧录固件，都推荐使用 [AMPY Batch Tool](https://gitee.com/walkline/a-batch-tool)，以下说明均使用`ab 工具`进行讲解
 
+#### 方法一：烧录固件
+
+设备连接到电脑，打开`终端`，输入命令，根据提示信息进行操作即可：
+
+```bash
+$ cd path/to/repo
+$ ab --flash # 选择 esp32c3 开头的固件文件
+```
+
+如果要设置屏幕亮度或其它设置，可以进行如下操作：
+
+```bash
+# 修改 config.py 文件相关内容并保存文件
+$ ab abc_config
+```
+
+根据提示信息选择端口号就可以上传修改后的`config.py`文件，之后重启设备即可
+
+#### 方法二：调试代码
+
+设备连接到电脑，打开`终端`，输入命令：
+
+```bash
+$ cd path/to/repo
+$ ab # 上传除 main.py 以外的所有文件
+$ ab --repl # 进入串口调试
+
+# 使用快捷键 Ctrl+R 选择要调试的文件，如：main.py
+# 使用快捷键 Ctrl+Z 退出串口调试
+# 快捷键 Ctrl+D 为软重启，Ctrl+X 为硬重启
+```
+
+#### 方法三：上传源文件
+
+设备连接到电脑，打开`终端`，输入命令：
+
+```bash
+$ cd path/to/repo
+
+# 修改 abconfig 文件，去掉 main.py 前边的'井号'并保存文件
+$ ab # 上传所有源文件
+```
+
+之后重启设备即可
 
 ### 计划增加的功能
 
