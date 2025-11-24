@@ -9,6 +9,7 @@ import ntptime as ntp
 from .ws2812 import WS2812Matrix
 from drivers.photoresistor import Photoresistor
 from utils.wifihandler import WifiHandler
+from utils.utilities import Utilities
 
 TIMEZONE = 8
 ntp.host = 'ntp.ntsc.ac.cn'
@@ -69,7 +70,7 @@ class MatrixClock(WS2812Matrix):
 		self.__MINUTE_ONES_PLACE_LIST = [self.__height - 1 + self.__height * count for count in range(width)]
 
 		self.__rtc = RTC()
-		self.__adc = Photoresistor(Config.PINS.ADC)
+		self.__adc = Photoresistor(Config.PINS.ADC) if Utilities.is_esp32c3() else None
 		self.__mode = self.MODE_TIME
 		self.__timer_count = 0
 		self.__last_adc_level = 0
