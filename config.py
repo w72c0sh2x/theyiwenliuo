@@ -51,7 +51,7 @@ class Config(object):
 
 	class Colors(object):
 		BLACK = (0, 0, 0)
-		WHITE = (128, 128, 128)
+		WHITE = (255, 255, 128)
 		RED = (255, 0, 0)
 		BLUE = (60, 60, 255)
 		GREEN = (0, 255, 0)
