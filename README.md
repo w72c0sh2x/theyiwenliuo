@@ -134,6 +134,24 @@ $ ab # 上传所有源文件
 
 之后重启设备即可
 
+#### 屏幕测试方法
+
+没有安装最上边的透光板可以使用`TEST`键切换测试效果，如果不方便使用按键测试，可以使用如下方法：
+
+```bash
+$ cd path/to/repo
+$ ab --repl
+
+# 使用快捷键 Ctrl+R 选择 test\matrix_test.py 文件
+>>> test_index=1
+>>> test_index=2
+>>> test_index=3
+>>> test_index=4
+>>> test_index=5
+>>> test_index=6
+```
+
+
 ### 计划增加的功能
 
 * 目前配网时没有任何提示信息，准备增加一个提示画面（或动画）
