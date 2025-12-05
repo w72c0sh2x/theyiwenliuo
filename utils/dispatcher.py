@@ -51,6 +51,26 @@ class Dispatcher(object):
 		else:
 			print('work must be a function')
 
+	def del_work(self, work):
+		'''
+		删除指定的任务
+		'''
+		if self.__workers.get(work):
+			self.__workers.pop(work)
+
+	def del_last_work(self):
+		'''
+		删除最后一个添加的任务
+		'''
+		if len(self.__workers) > 0:
+			self.__workers.popitem()
+	
+	def del_works(self):
+		'''
+		删除所有任务
+		'''
+		self.__workers.clear()
+
 
 class Worker(object):
 	'''
