@@ -15,7 +15,7 @@ def color_generator(random=False):
 
 	while True:
 		if random:
-			yield randint(0, 65)
+			yield randint(0, 200)
 		else:
 			yield count
 
