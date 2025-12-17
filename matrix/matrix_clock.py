@@ -40,6 +40,7 @@ class MatrixClock(WS2812Matrix):
 	__MINUTE_TENS_PLACE_COLUMN = 8
 	__MINUTE_ONES_PLACE_LIST = [] # [5, 11, 17, 23, 29, 35, 41, 47, 53, 59]
 
+	__WAITING = 0x80180380780 # '000000000010000000000110000000001110000000011110000000'
 	__NUM_V0 = 0x7e3f # '111111000111111'
 	__NUM_V1 = 0x27e1 # '010011111100001'
 	__NUM_V2 = 0x5ebd # '101111010111101'
@@ -74,6 +75,7 @@ class MatrixClock(WS2812Matrix):
 		self.__mode = self.MODE_TIME
 		self.__timer_count = 0
 		self.__last_adc_level = 0
+		self.__gradient_color = self.__color_generator()
 
 		self.clean()
 		self.set_brightness(20)
@@ -113,6 +115,15 @@ class MatrixClock(WS2812Matrix):
 		if self.powered_on:
 			self.show()
 
+	def show_waiting(self):
+		waiting = self.__zfill_bin_54(MatrixClock.__WAITING)
+		color = next(self.__gradient_color)
+
+		for _ in range(self.led_count):
+			self.__neopixel[_] = (color, color, color) if waiting[_] == '1' else self.__black
+		
+		self.show()
+
 	def power_on(self):
 		self.show_time()
 
@@ -134,6 +145,7 @@ class MatrixClock(WS2812Matrix):
 			self.__mode = 0
 
 	def start(self):
+		self.clean()
 		self.sync_time()
 		self.show_time()
 
@@ -219,6 +231,18 @@ class MatrixClock(WS2812Matrix):
 
 			self.__neopixel[self.__MINUTE_ONES_PLACE_LIST[index]] = green
 
+	def __color_generator(self):
+		count = 0
+		step = 50
+
+		while True:
+			yield count
+
+			count += step
+
+			if count >= 200 or count <= 0:
+				step = -step
+
 	def __zfill_time(self, value:int):
 		'''将时分秒填充为 2 位数字符串'''
 		value = str(value)
@@ -227,6 +251,9 @@ class MatrixClock(WS2812Matrix):
 	def __zfile_bin(self, value:int):
 		'''将整型转为 15 位二进制字符串'''
 		return '{:015b}'.format(value)
+	
+	def __zfill_bin_54(self, value:int):
+		return '{:054b}'.format(value)
 
 	@property
 	def mode(self):
