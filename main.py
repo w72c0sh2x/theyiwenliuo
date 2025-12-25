@@ -6,6 +6,7 @@ from config import Config
 from utime import sleep
 from utils.utilities import Utilities
 from utils.wifihandler import WifiHandler
+from matrix.matrix_clock import MatrixClock
 from drivers.button import Button
 from utils.dispatcher import Dispatcher
 import sys
@@ -47,16 +48,17 @@ if __name__ == '__main__':
 			press_cb=buttons_press_cb
 		)
 
-		if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
-			from matrix.matrix_clock import MatrixClock
+		tasks = Dispatcher()
+		clock = MatrixClock(Config.MATRIX.WIDTH, Config.MATRIX.HEIGHT)
+		tasks.add_work(clock.show_waiting, 20)
 
-			clock = MatrixClock(Config.MATRIX.WIDTH, Config.MATRIX.HEIGHT)
+		if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
 			clock.mode = MatrixClock.MODE_TIME
 			clock.start()
+			tasks.del_works()
 			clock.set_bright_max(Config.BRIGHTNESS.MAX)
 			clock.auto_brightness()
 
-			tasks = Dispatcher()
 			tasks.add_work(clock.refresh_time, Config.PERIOD.CLOCK_MS) #, thread=True)
 			tasks.add_work(clock.auto_brightness, Config.PERIOD.ADC_MS) #, thread=True)
 
