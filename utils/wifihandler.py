@@ -3,6 +3,7 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 import network
+import socket
 from utime import sleep_ms
 import smartconfig
 from .utilities import Utilities
@@ -84,8 +85,8 @@ class WifiHandler(object):
 
 					while not smartconfig.success():
 						sleep_ms(500)
-					
-					essid, password = smartconfig.info()
+
+					essid, password, _ = smartconfig.info()
 					using_smartconfig = True
 
 					print(f'-- Got info, essid={essid}, password={password}')
@@ -118,11 +119,32 @@ class WifiHandler(object):
 
 		if status_code == WifiHandler.STATION_CONNECTED and using_smartconfig:
 			Utilities.output_sta_config_file(essid, password)
+			# WifiHandler.__send_ack(station.ifconfig()[0])
 
 		return status_code
+
+	@staticmethod
+	def __send_ack(local_ip):
+		udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+		token = smartconfig.info()[2].to_bytes(1, 'little') + WifiHandler.get_mac_address()
+		for _ in range(30):
+			sleep_ms(100)
+			try:
+				print(udp.sendto(token, ('255.255.255.255', 10000)))
+			except OSError:
+				pass
 
 	@staticmethod
 	def is_sta_connected():
 		station = network.WLAN(network.STA_IF)
 
 		return station.isconnected()
+
+	@staticmethod
+	def get_mac_address():
+		station = network.WLAN(network.STA_IF)
+		return station.config('mac')
+
+		# return "".join(['%02X' % i for i in station.config('mac')]).lower()
