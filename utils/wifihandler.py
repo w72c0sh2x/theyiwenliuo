@@ -86,10 +86,10 @@ class WifiHandler(object):
 					while not smartconfig.success():
 						sleep_ms(500)
 
-					essid, password, _ = smartconfig.info()
+					essid, password, sc_type, token = smartconfig.info()
 					using_smartconfig = True
 
-					print(f'-- Got info, essid={essid}, password={password}')
+					print(f'-- Got info\n    ssid={essid}\n    password={password}\n    type={sc_type}\n    token={token}')
 
 			station.connect(essid, password)
 
@@ -119,22 +119,29 @@ class WifiHandler(object):
 
 		if status_code == WifiHandler.STATION_CONNECTED and using_smartconfig:
 			Utilities.output_sta_config_file(essid, password)
-			# WifiHandler.__send_ack(station.ifconfig()[0])
+			WifiHandler.__send_smartconfig_ack(station.ifconfig()[0])
 
 		return status_code
 
 	@staticmethod
-	def __send_ack(local_ip):
+	def __send_smartconfig_ack(local_ip):
 		udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-		token = smartconfig.info()[2].to_bytes(1, 'little') + WifiHandler.get_mac_address()
+		token = smartconfig.info()[3].to_bytes(1, 'little') + WifiHandler.get_mac_address()
+		port = 10000
+
+		if smartconfig.info()[2] == smartconfig.TYPE_ESPTOUCH:
+			token += WifiHandler.inet_pton(local_ip)
+			port = 18266
+
 		for _ in range(30):
 			sleep_ms(100)
 			try:
-				print(udp.sendto(token, ('255.255.255.255', 10000)))
+				udp.sendto(token, ('255.255.255.255', port))
 			except OSError:
 				pass
+		print('ack was sent')
 
 	@staticmethod
 	def is_sta_connected():
@@ -143,8 +150,19 @@ class WifiHandler(object):
 		return station.isconnected()
 
 	@staticmethod
+	def inet_pton(ip_str:str):
+		'''
+		字符串 IP 地址转字节串
+		'''
+		result = b''
+		ip_seg = ip_str.split('.')
+
+		for seg in ip_seg:
+			result += int(seg).to_bytes(1, 'little')
+
+		return result
+
+	@staticmethod
 	def get_mac_address():
 		station = network.WLAN(network.STA_IF)
 		return station.config('mac')
-
-		# return "".join(['%02X' % i for i in station.config('mac')]).lower()
