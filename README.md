@@ -44,12 +44,43 @@
 
 > `Touch`方式需要使用乐鑫提供的 [EspTouch for Android](https://github.com/EspressifApp/EsptouchForAndroid/releases)
 
-项目中提供的固件已经集成了半血版`SmartConfig`，用微信或 app 配网时不会提示配网成功，只用于获取`ssid`和`password`，使用方法和代码如下：
+项目中提供的固件已集成`SmartConfig`模块，可用于获取`ssid`和`password`，使用方法和代码如下：
 
 ```python
 from utime import sleep
 import network
+import socket
 import smartconfig
+
+
+def inet_pton(ip_str:str):
+    '''将字符串 IP 地址转换为字节串'''
+    ip_bytes = b''
+    ip_segs = ip_str.split('.')
+
+    for seg in ip_segs:
+        ip_bytes += int(seg).to_bytes(1, 'little')
+
+    return ip_bytes
+
+def send_ack(local_ip, local_mac):
+    '''向手机发送配网完成通知'''
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    data = smartconfig.info()[2].to_bytes(1, 'little') + local_mac
+    port = 10000 # airkiss 端口号
+
+    if smartconfig.info()[2] == smartconfig.TYPE_ESPTOUCH:
+        data += inet_pton(local_ip)
+        port = 18266 # esptouch 端口号
+
+    for _ in range(30):
+        sleep(0.1)
+        try:
+            udp.sendto(data, ('255.255.255.255', port))
+        except OSError:
+            pass
 
 station = network.WLAN(network.STA_IF)
 station.active(True)
@@ -58,17 +89,25 @@ smartconfig.start()
 
 # 手机连接 2.4G 无线网络（重要）
 # 关注 安信可科技 微信公众号，点击 应用开发→微信配网，或
-# 关注 乐鑫信息科技 微信公众号，点击 商铺→Airkiss 设备
-# 输入 Wi-Fi密码 后点击 连接，等待即可
+# 关注 乐鑫信息科技 微信公众号，点击 商铺→Airkiss 设备，或
+# 安装 EspTouch app，点击 EspTouch
+# 输入 Wi-Fi密码 后点击 连接按钮
 
 while not smartconfig.success():
     sleep(0.5)
 
+ssid, password, sc_type, token = smartconfig.info()
 print(smartconfig.info())
 
-# 强制退出 微信配网 或 Airkiss 设备
+>>> ('ssid', 'password', 'sc_type', 'token')
 
->>> ('ssid', 'password')
+# 以下代码用于向手机发送配网完成通知，可选项
+station.connect(ssid, password)
+
+while not station.isconnected():
+    sleep(0.5)
+
+send_ack(station.ifconfig()[0], station.config('mac'))
 ```
 
 > 如果长时间获取不到信息，则需要手动重启设备并重试
@@ -161,6 +200,8 @@ $ ab --repl
 * 为了省事没有给每一颗 LED 搭配电容，当全部 LED 以白色最大亮度（255）点亮时，会因为供电不足导致无法继续工作，所以解决方案是降低最大亮度的上限值，目前仅使用`10%`亮度，不使用遮光板的前提下亮度已经足够
 
 * `SmartConfig`偶尔出现卡死的情况，不使用串口调试无法发现，不过无线连接本来就是个概率事件，也能说得过去。。。。吧
+
+* `SmartConfig`在我的`WIFI6`路由器下使用会出现无法发送配网完成通知的情况，无解
 
 ### 相关项目
 
