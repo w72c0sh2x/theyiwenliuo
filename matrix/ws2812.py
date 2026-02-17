@@ -8,17 +8,15 @@ from config import Config
 
 
 class WS2812Matrix(object):
-	__BRIGHT_MAX = 0.1
-	__BRIGHT_MIN = 0.05
+	__BRIGHT_MAX_VALUE = 200
+	__BRIGHT_MIN_VALUE = 1
 
 	def __init__(self, width, height, pin=Config.PINS.DIN):
 		self.__width = width
 		self.__height = height
 		self.__neopixel = NeoPixel(Pin(pin), self.__width * self.__height)
-		self.__bright_percent = 0
-		self.__bright_min = self.__BRIGHT_MIN
-		self.__bright_max = self.__BRIGHT_MAX
-		self.__brightness = 100
+		self.__bright_max = self.__BRIGHT_MAX_VALUE
+		self.__bright_percent = 100
 		self.powered_on = True
 
 	def clean(self):
@@ -33,7 +31,7 @@ class WS2812Matrix(object):
 		填充指定颜色，参数支持 int 和 tuple (r, g, b)
 		'''
 		if isinstance(color, int):
-			color = int(color * self.__bright_percent)
+			color = int(color * (self.__bright_percent / 100 * self.__bright_max))
 			self.__neopixel.fill((color, color, color))
 		elif isinstance(color, tuple) and len(color) == 3:
 			self.__neopixel.fill(self.set_color(color))
@@ -44,42 +42,27 @@ class WS2812Matrix(object):
 		'''
 		self.__neopixel.write()
 
-	def refresh(self):
-		'''
-		刷新显示内容
-		'''
-		for index in range(self.led_count):
-			self.__neopixel[index] = self.set_color(self.__neopixel[index])
-
-		self.show()
-
 	def set_color(self, color:tuple):
 		'''
 		设置颜色亮度
 		'''
 		if isinstance(color, tuple) and len(color) == 3:
 			r, g, b = color
-			r = int(r * self.__bright_percent)
-			g = int(g * self.__bright_percent)
-			b = int(b * self.__bright_percent)
+			r = int(r * (self.__bright_percent / 100 * self.__bright_max))
+			g = int(g * (self.__bright_percent / 100 * self.__bright_max))
+			b = int(b * (self.__bright_percent / 100 * self.__bright_max))
 			color = (r, g, b)
 
 		return color
 
-	def set_bright_max(self, value):
+	def set_bright_max(self, value:int):
 		'''
-		设置亮度最大值，取值范围 0.0~1.0
+		设置亮度最大值，取值范围 1~200
 		'''
-		if 1 < value <= 0:
-			self.__bright_max = self.__BRIGHT_MAX
+		if value > self.__BRIGHT_MAX_VALUE or value < self.__BRIGHT_MIN_VALUE:
+			self.__bright_max = self.__BRIGHT_MAX_VALUE
 		else:
 			self.__bright_max = value
-		
-	def set_bright_min(self, value):
-		if self.__bright_max <= value <= 0:
-			self.__bright_min = self.__BRIGHT_MIN
-		else:
-			self.__bright_min = value
 
 	@property
 	def led_count(self):
@@ -91,16 +74,11 @@ class WS2812Matrix(object):
 
 	@property
 	def brightness(self):
-		return self.__brightness
+		return self.__bright_percent
 
 	@brightness.setter
 	def brightness(self, value:int):
-		if not isinstance(value, int) or value <= 10:
-			value = 100
-		elif value >= 100:
-			value = 10
-
-		self.__brightness = value
-		value = value / 100
-
-		self.__bright_percent = (self.__bright_max - self.__bright_min) * value + self.__bright_min * value
+		'''
+		设置亮度百分比
+		'''
+		self.__bright_percent = 1 if value < 1 else (100 if value > 100 else value)
