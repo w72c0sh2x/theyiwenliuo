@@ -24,12 +24,12 @@ class MatrixClock(WS2812Matrix):
 	MODE_LIST = ['time', 'light', 'blink']
 
 	BRIGHTNESS_LEVEL = {
-		Photoresistor.LEVEL_1: 95,
+		Photoresistor.LEVEL_1: 100,
 		Photoresistor.LEVEL_2: 75,
 		Photoresistor.LEVEL_3: 60,
 		Photoresistor.LEVEL_4: 45,
 		Photoresistor.LEVEL_5: 35,
-		Photoresistor.LEVEL_6: 25
+		Photoresistor.LEVEL_6: 15
 	}
 
 	__MODE_LAST = MODE_BLINK
@@ -175,7 +175,7 @@ class MatrixClock(WS2812Matrix):
 
 		self.set_brightness(self.BRIGHTNESS_LEVEL[adc_level])
 		self.show_time()
-		print(f'set brightness level to {adc_level} ({self.__bright_percent * 100}%)')
+		print(f'set brightness level to {adc_level} ({self.brightness}%)')
 
 	def set_brightness(self, value):
 		self.brightness = value
@@ -240,7 +240,7 @@ class MatrixClock(WS2812Matrix):
 
 			count += step
 
-			if count >= 200 or count <= 0:
+			if count >= self.__BRIGHT_MAX_VALUE or count <= self.__BRIGHT_MIN_VALUE:
 				step = -step
 
 	def __zfill_time(self, value:int):
