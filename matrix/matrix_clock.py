@@ -6,7 +6,12 @@ from config import Config
 from machine import RTC
 from utime import sleep, localtime
 import ntptime as ntp
-from .ws2812 import WS2812Matrix
+
+try:
+	from .ws2812 import WS2812Matrix
+except ImportError:
+	from matrix.ws2812 import WS2812Matrix
+
 from drivers.photoresistor import Photoresistor
 from utils.wifihandler import WifiHandler
 from utils.utilities import Utilities

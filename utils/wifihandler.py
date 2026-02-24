@@ -6,7 +6,11 @@ import network
 import socket
 from utime import sleep_ms
 import smartconfig
-from .utilities import Utilities
+
+try:
+	from .utilities import Utilities
+except ImportError:
+	from utils.utilities import Utilities
 
 __station_status_message = {
 	network.STAT_IDLE: "network idle",
