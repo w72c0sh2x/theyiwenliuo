@@ -6,17 +6,23 @@ from machine import Timer
 from utime import sleep
 import _thread
 
+try:
+	from .utilities import Utilities
+except ImportError:
+	from utils.utilities import Utilities
+
 
 class Dispatcher(object):
 	'''
 	定时器任务调度器
 	'''
-	__DEFAULT_PERIOD = 100
+	__DEFAULT_PERIOD = 20
 
 	def __init__(self, timer_id=0):
 		self.__workers = {}
 		self.__timer = Timer(timer_id)
 		self.__time_counter = 0
+		self.__adjusting_rate = 2 if Utilities.is_esp32c3() else 1
 
 		self.__timer.init(
 			mode=Timer.PERIODIC,
@@ -35,7 +41,7 @@ class Dispatcher(object):
 			self.__time_counter = 1
 
 		for worker in self.__workers.values():
-			if (self.__time_counter * self.__DEFAULT_PERIOD * 2) % worker.period == 0:
+			if (self.__time_counter * self.__DEFAULT_PERIOD * self.__adjusting_rate) % worker.period == 0:
 				if worker.thread:
 					_thread.start_new_thread(worker.do_work, ())
 					sleep(0.02)
@@ -99,11 +105,11 @@ if __name__ == '__main__':
 
 	def task1():
 		print(f'\t{rtc.datetime()[4:7]} task 1 (3)')
-		sleep(0.8)
+		sleep(0.1)
 	
 	def task2():
 		print(f'{rtc.datetime()[4:7]} task 2 (5)')
-		sleep(0.5)
+		sleep(0.2)
 
 	rtc = RTC()
 	rtc.init((2000, 1, 1, 0, 0, 0, 0, 8))
