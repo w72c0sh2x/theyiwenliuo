@@ -27,7 +27,9 @@ def buttons_click_cb(pin):
 	elif pin == Config.KEYS.KEY_2:
 		pass
 	elif pin == Config.KEYS.KEY_3:
-		clock.set_brightness(clock.brightness - 20)
+		bright = clock.brightness - 20
+
+		clock.set_brightness(100 if bright < 1 else bright)
 		clock.show_time()
 	elif pin == Config.KEYS.KEY_4:
 		clock.switch_power()
