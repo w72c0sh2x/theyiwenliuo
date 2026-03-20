@@ -23,6 +23,7 @@ class Dispatcher(object):
 		self.__timer = Timer(timer_id)
 		self.__time_counter = 0
 		self.__adjusting_rate = 2 if Utilities.is_esp32c3() else 1
+		self.__paused = False
 
 		self.__timer.init(
 			mode=Timer.PERIODIC,
@@ -35,12 +36,16 @@ class Dispatcher(object):
 		self.__workers = {}
 
 	def  __worker_callback(self, _):
+		if self.__paused: return
+
 		self.__time_counter += 1
 
 		if self.__time_counter > 10 ** 5:
 			self.__time_counter = 1
 
 		for worker in self.__workers.values():
+			if self.__paused: break
+
 			if (self.__time_counter * self.__DEFAULT_PERIOD * self.__adjusting_rate) % worker.period == 0:
 				if worker.thread:
 					_thread.start_new_thread(worker.do_work, ())
@@ -62,20 +67,29 @@ class Dispatcher(object):
 		删除指定的任务
 		'''
 		if self.__workers.get(work):
+			self.pause()
 			self.__workers.pop(work)
+			self.pause()
 
 	def del_last_work(self):
 		'''
 		删除最后一个添加的任务
 		'''
 		if len(self.__workers) > 0:
+			self.pause()
 			self.__workers.popitem()
-	
+			self.pause()
+
 	def del_works(self):
 		'''
 		删除所有任务
 		'''
+		self.pause()
 		self.__workers.clear()
+		self.pause()
+	
+	def pause(self):
+		self.__paused = not self.__paused
 
 
 class Worker(object):
