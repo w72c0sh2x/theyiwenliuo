@@ -31,7 +31,7 @@ class WS2812Matrix(object):
 		填充指定颜色，参数支持 int 和 tuple (r, g, b)
 		'''
 		if isinstance(color, int):
-			color = int(color * (self.__bright_percent / 100 * self.__bright_max))
+			color = self.set_color(color)
 			self.__neopixel.fill((color, color, color))
 		elif isinstance(color, tuple) and len(color) == 3:
 			self.__neopixel.fill(self.set_color(color))
@@ -42,15 +42,18 @@ class WS2812Matrix(object):
 		'''
 		self.__neopixel.write()
 
-	def set_color(self, color:tuple):
+	def set_color(self, color:tuple(int, tuple)):
 		'''
 		设置颜色亮度
 		'''
+		if isinstance(color, int):
+			rel = 255 / self.__bright_max
+			color = int((color / rel) * (self.__bright_percent / 100))
 		if isinstance(color, tuple) and len(color) == 3:
 			r, g, b = color
-			r = int(r * (self.__bright_percent / 100 * self.__bright_max))
-			g = int(g * (self.__bright_percent / 100 * self.__bright_max))
-			b = int(b * (self.__bright_percent / 100 * self.__bright_max))
+			r = self.set_color(r)
+			g = self.set_color(g)
+			b = self.set_color(b)
 			color = (r, g, b)
 
 		return color
