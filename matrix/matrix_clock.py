@@ -116,13 +116,13 @@ class MatrixClock(WS2812Matrix):
 
 		self.set_hour(hour)
 		self.set_minute(minute)
-		
+
 		if self.powered_on:
 			self.show()
 
 	def show_waiting(self):
 		waiting = self.__zfill_bin_54(MatrixClock.__WAITING)
-		color = next(self.__gradient_color)
+		color = self.set_color(next(self.__gradient_color))
 
 		for _ in range(self.led_count):
 			self.__neopixel[_] = (color, color, color) if waiting[_] == '1' else self.__black
@@ -150,7 +150,6 @@ class MatrixClock(WS2812Matrix):
 			self.__mode = 0
 
 	def start(self):
-		self.clean()
 		self.sync_time()
 		self.show_time()
 
@@ -183,6 +182,9 @@ class MatrixClock(WS2812Matrix):
 		print(f'set brightness level to {adc_level} ({self.brightness}%)')
 
 	def set_brightness(self, value):
+		'''
+		设置亮度百分比
+		'''
 		self.brightness = value
 		self.__black = Config.Colors.BLACK
 		self.__white = self.set_color(Config.Colors.WHITE)
