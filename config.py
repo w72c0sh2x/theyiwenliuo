@@ -9,7 +9,8 @@ esp32c3 = Utilities.is_esp32c3()
 
 class Config(object):
 	class BRIGHTNESS(object):
-		MAX = 100 # 根据实际情况设置亮度最大值百分比，取值范围 (1~100)
+		# 根据实际情况设置亮度最大值，取值范围 (1~200)
+		MAX = 200
 
 
 	class PINS(object):
@@ -51,7 +52,7 @@ class Config(object):
 
 	class Colors(object):
 		BLACK = (0, 0, 0)
-		WHITE = (255, 255, 128)
+		WHITE = (255, 255, 255)
 		RED = (255, 0, 0)
 		BLUE = (60, 60, 255)
 		GREEN = (0, 255, 0)
