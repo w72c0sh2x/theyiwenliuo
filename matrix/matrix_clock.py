@@ -12,6 +12,7 @@ try:
 except ImportError:
 	from matrix.ws2812 import WS2812Matrix
 
+from matrix.animation import Animation
 from drivers.photoresistor import Photoresistor
 from utils.wifihandler import WifiHandler
 from utils.utilities import Utilities
@@ -77,10 +78,19 @@ class MatrixClock(WS2812Matrix):
 
 		self.__rtc = RTC()
 		self.__adc = Photoresistor(Config.PINS.ADC) if Utilities.is_esp32c3() else None
+		self.__animation = Animation()
 		self.__mode = self.MODE_TIME
 		self.__timer_count = 0
 		self.__last_adc_level = 0
-		self.__gradient_color = self.__color_generator()
+
+		try:
+			import sta_config
+			# 连接 wifi 动画
+			self.__animation.select_animation(Animation.ANIMATION_CONNECTING_1)
+			self.__animation.set_color_step(50)
+		except ImportError:
+			# 配网指示动画
+			self.__animation.select_animation(Animation.ANIMATION_CONNECTING_2)
 
 		self.clean()
 		self.set_brightness(20)
@@ -120,13 +130,15 @@ class MatrixClock(WS2812Matrix):
 		if self.powered_on:
 			self.show()
 
-	def show_waiting(self):
-		waiting = self.__zfill_bin_54(MatrixClock.__WAITING)
-		color = self.set_color(next(self.__gradient_color))
+	def show_connecting(self):
+		'''
+		显示联网动画
+		'''
+		frame, color = self.__animation.get_frame_and_color()
 
-		for _ in range(self.led_count):
-			self.__neopixel[_] = (color, color, color) if waiting[_] == '1' else self.__black
-		
+		for _ in range(len(frame)):
+			self.__neopixel[_] = (color, color, color) if frame[_] == '1' else self.__black
+
 		self.show()
 
 	def power_on(self):
@@ -238,18 +250,6 @@ class MatrixClock(WS2812Matrix):
 
 			self.__neopixel[self.__MINUTE_ONES_PLACE_LIST[index]] = green
 
-	def __color_generator(self):
-		count = 0
-		step = 50
-
-		while True:
-			yield count
-
-			count += step
-
-			if count >= self.__BRIGHT_MAX_VALUE or count <= self.__BRIGHT_MIN_VALUE:
-				step = -step
-
 	def __zfill_time(self, value:int):
 		'''将时分秒填充为 2 位数字符串'''
 		value = str(value)
@@ -259,9 +259,6 @@ class MatrixClock(WS2812Matrix):
 		'''将整型转为 15 位二进制字符串'''
 		return '{:015b}'.format(value)
 	
-	def __zfill_bin_54(self, value:int):
-		return '{:054b}'.format(value)
-
 	@property
 	def mode(self):
 		return self.__mode
