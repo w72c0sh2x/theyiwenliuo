@@ -53,7 +53,7 @@ if __name__ == '__main__':
 		tasks = Dispatcher()
 		clock = MatrixClock(Config.MATRIX.WIDTH, Config.MATRIX.HEIGHT)
 		clock.set_bright_max(Config.BRIGHTNESS.MAX)
-		tasks.add_work(clock.show_waiting, 50)
+		tasks.add_work(clock.show_connecting, 50)
 
 		if WifiHandler.STATION_CONNECTED == WifiHandler.set_sta_mode(timeout_sec=120):
 			clock.mode = MatrixClock.MODE_TIME
