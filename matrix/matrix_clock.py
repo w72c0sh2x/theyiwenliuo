@@ -124,11 +124,32 @@ class MatrixClock(WS2812Matrix):
 		hour = datetime[4]
 		minute = datetime[5]
 
+		if minute == 0:
+			self.show_blink()
+
 		self.set_hour(hour)
 		self.set_minute(minute)
 
 		if self.powered_on:
 			self.show()
+
+	def show_blink(self):
+		if not self.powered_on: return
+
+		self.fill(Config.Colors.WHITE)
+		self.show()
+		sleep(0.1)
+		self.clean()
+		sleep(0.1)
+		self.fill(Config.Colors.WHITE)
+		self.show()
+		sleep(0.1)
+		self.clean()
+		sleep(0.1)
+		self.fill(Config.Colors.WHITE)
+		self.show()
+		sleep(0.5)
+		self.clean()
 
 	def show_connecting(self):
 		'''
