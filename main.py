@@ -25,7 +25,7 @@ def buttons_click_cb(pin):
 	if pin == Config.KEYS.KEY_1:
 		clock.switch_mode()
 	elif pin == Config.KEYS.KEY_2:
-		pass
+		clock.show_blink()
 	elif pin == Config.KEYS.KEY_3:
 		bright = clock.brightness - 20
 
