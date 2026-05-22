@@ -82,6 +82,7 @@ class MatrixClock(WS2812Matrix):
 		self.__mode = self.MODE_TIME
 		self.__timer_count = 0
 		self.__last_adc_level = 0
+		self.__last_hour = 0
 
 		try:
 			import sta_config
@@ -124,7 +125,8 @@ class MatrixClock(WS2812Matrix):
 		hour = datetime[4]
 		minute = datetime[5]
 
-		if minute == 0:
+		if self.__last_hour != hour and minute == 0:
+			self.__last_hour = hour
 			self.show_blink()
 
 		self.set_hour(hour)
