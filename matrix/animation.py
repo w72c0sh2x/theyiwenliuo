@@ -104,10 +104,7 @@ class Animation(object):
 
 		while True:
 			yield frames[index]
-
-			index += 1
-
-			if index >= count: index = 0
+			index = (index + 1) % count
 
 	def __color_generator(self):
 		'''
