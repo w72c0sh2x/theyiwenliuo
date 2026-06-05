@@ -7,11 +7,6 @@ import socket
 from utime import sleep_ms
 import smartconfig
 
-try:
-	from .utilities import Utilities
-except ImportError:
-	from utils.utilities import Utilities
-
 __station_status_message = {
 	network.STAT_IDLE: "network idle",
 	network.STAT_CONNECTING: "",
@@ -28,6 +23,7 @@ class WifiHandler(object):
 	AP_MODE = 0
 	STA_MODE = 1
 	STATION_CONNECTED = network.STAT_GOT_IP
+	STA_CONFIG_FILENAME = 'sta_config.py'
 
 	def __init__(self):
 		pass
@@ -122,7 +118,7 @@ class WifiHandler(object):
 		print(station.ifconfig())
 
 		if status_code == WifiHandler.STATION_CONNECTED and using_smartconfig:
-			Utilities.output_sta_config_file(essid, password)
+			WifiHandler.output_sta_config_file(essid, password)
 			WifiHandler.__send_smartconfig_ack(station.ifconfig()[0])
 
 		return status_code
@@ -170,3 +166,13 @@ class WifiHandler(object):
 	def get_mac_address():
 		station = network.WLAN(network.STA_IF)
 		return station.config('mac')
+
+	@staticmethod
+	def output_sta_config_file(essid, password):
+		with open(WifiHandler.STA_CONFIG_FILENAME, 'w') as output:
+			output.write(
+f'''# automatic generated file
+essid = '{essid}'
+password = '{password}'
+'''
+			)
