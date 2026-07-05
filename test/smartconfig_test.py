@@ -19,7 +19,7 @@ def send_ack(local_ip, local_mac):
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    data = smartconfig.info()[2].to_bytes(1, 'little') + local_mac
+    data = smartconfig.info()[3].to_bytes(1, 'little') + local_mac
     port = 10000 # airkiss 端口号
 
     if smartconfig.info()[2] == smartconfig.TYPE_ESPTOUCH:
