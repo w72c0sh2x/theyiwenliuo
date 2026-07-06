@@ -71,7 +71,7 @@ def send_ack(local_ip, local_mac):
     data = smartconfig.info()[2].to_bytes(1, 'little') + local_mac
     port = 10000 # airkiss 端口号
 
-    if smartconfig.info()[2] == smartconfig.TYPE_ESPTOUCH:
+    if smartconfig.info()[3] == smartconfig.TYPE_ESPTOUCH:
         data += inet_pton(local_ip)
         port = 18266 # esptouch 端口号
 
