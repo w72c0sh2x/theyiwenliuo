@@ -112,6 +112,9 @@ send_ack(station.ifconfig()[0], station.config('mac'))
 
 > 如果长时间获取不到信息，则需要手动重启设备并重试
 
+前往观看 [配网演示视频](https://www.bilibili.com/video/BV1N34y1971S/
+)
+
 ### Led 显示
 
 由于点阵数量严重不足，经过思考决定使用如下形式显示当前时间
@@ -172,6 +175,8 @@ $ ab # 上传所有源文件
 ```
 
 之后重启设备即可
+
+前往观看 [设备使用演示](https://www.bilibili.com/video/BV1jQ4y1v7Wq/)
 
 #### 屏幕测试方法
 
