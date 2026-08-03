@@ -23,7 +23,7 @@ class Config(object):
 		KEY_2 = 3 if esp32c3 else 21
 		KEY_3 = 4 if esp32c3 else 5
 		KEY_4 = 5 if esp32c3 else 4
-		KEY_TEST = 6 if esp32c3 else 0
+		KEY_TEST = 6 if esp32c3 else 12
 		KEY_BOOT = 9 if esp32c3 else 0
 
 		KEY_LIST = (KEY_1, KEY_2, KEY_3, KEY_4, KEY_TEST, KEY_BOOT)
