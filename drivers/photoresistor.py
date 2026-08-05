@@ -2,7 +2,6 @@
 Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-research
 """
-from config import Config
 from machine import Pin, ADC
 from utime import sleep
 
@@ -49,6 +48,8 @@ class Photoresistor(object):
 
 
 if __name__ == '__main__':
+	from config import Config
+
 	adc = Photoresistor(Config.PINS.ADC)
 
 	for _ in range(10000):

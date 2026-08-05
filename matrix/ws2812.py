@@ -4,7 +4,8 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Pin
 from neopixel import NeoPixel
-from config import Config
+from utils.utilities import Utilities
+Config = Utilities.import_config()
 
 
 class WS2812Matrix(object):

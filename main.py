@@ -2,16 +2,13 @@
 Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-research
 """
-from config import Config
 from utime import sleep
 from utils.utilities import Utilities
 from utils.wifihandler import WifiHandler
 from matrix.matrix_clock import MatrixClock
 from drivers.button import Button
 from utils.dispatcher import Dispatcher
-import sys
-
-sys.path.insert(0, '/')
+Config = Utilities.import_config()
 
 clock = None
 buttons = None

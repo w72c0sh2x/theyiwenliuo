@@ -4,8 +4,8 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import Pin, ADC
 from drivers.button import Button
-from config import Config
 from utils.utilities import Utilities
+Config = Utilities.import_config()
 
 
 if __name__ == '__main__':

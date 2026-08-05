@@ -2,7 +2,6 @@
 Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
-from config import Config
 from machine import RTC
 from utime import sleep, localtime
 import ntptime as ntp
@@ -16,6 +15,7 @@ from matrix.animation import Animation
 from drivers.photoresistor import Photoresistor
 from utils.wifihandler import WifiHandler
 from utils.utilities import Utilities
+Config = Utilities.import_config()
 
 TIMEZONE = 8
 ntp.host = 'ntp.ntsc.ac.cn'

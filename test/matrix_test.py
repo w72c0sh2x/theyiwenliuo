@@ -5,8 +5,9 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 from machine import Pin, Timer
 from random import randint
 from neopixel import NeoPixel
-from config import Config
 from drivers.button import Button
+from utils.utilities import Utilities
+Config = Utilities.import_config()
 
 
 def color_generator(random=False):
