@@ -6,6 +6,15 @@ class Utilities(object):
 	STA_CONFIG_FILENAME = 'sta_config.py'
 
 	@staticmethod
+	def import_config():
+		try:
+			Config = __import__('./config').Config
+		except ImportError:
+			from config import Config
+
+		return Config
+
+	@staticmethod
 	def is_esp32c3():
 		from machine import Pin
 		from os import uname
