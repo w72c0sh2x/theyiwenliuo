@@ -3,6 +3,9 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from utils.utilities import Utilities
+import esp
+
+esp.osdebug(None) # 注释此行可显示详细调试信息
 
 esp32c3 = Utilities.is_esp32c3()
 
