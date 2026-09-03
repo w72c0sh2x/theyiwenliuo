@@ -3,7 +3,7 @@ Copyright © 2021 Walkline Wang (https://walkline.wang)
 Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import RTC
-from utime import sleep, localtime
+import utime
 import ntptime as ntp
 
 try:
@@ -103,7 +103,7 @@ class MatrixClock(WS2812Matrix):
 			for _ in range(retry):
 				try:
 					ntp.settime()
-					time = localtime()
+					time = utime.localtime()
 					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
 					return
 				except OSError as ose:
@@ -114,9 +114,15 @@ class MatrixClock(WS2812Matrix):
 				except Exception as e:
 					print(e)
 
-				sleep(0.2)
+				utime.sleep(0.2)
 
-			print(f'Cannot reach ntp host: {ntp.host}, sync time failed')
+			if utime.time() < 60 * 60 * 2:
+				# first time sync time failed, reset
+				Utilities.hard_reset()
+			else:
+				print(f'Cannot reach ntp host: {ntp.host}, sync time failed')
+				time = utime.localtime()
+				print(f'RTC: {time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
 		else:
 			print('No wifi connected, sync time cancelled')
 
