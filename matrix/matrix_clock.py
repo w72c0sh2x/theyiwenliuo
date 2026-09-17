@@ -146,17 +146,17 @@ class MatrixClock(WS2812Matrix):
 
 		self.fill(Config.Colors.WHITE)
 		self.show()
-		sleep(0.1)
+		utime.sleep(0.1)
 		self.clean()
-		sleep(0.1)
+		utime.sleep(0.1)
 		self.fill(Config.Colors.WHITE)
 		self.show()
-		sleep(0.1)
+		utime.sleep(0.1)
 		self.clean()
-		sleep(0.1)
+		utime.sleep(0.1)
 		self.fill(Config.Colors.WHITE)
 		self.show()
-		sleep(0.5)
+		utime.sleep(0.5)
 		self.clean()
 
 	def show_connecting(self):
