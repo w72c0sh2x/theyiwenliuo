@@ -91,7 +91,8 @@ smartconfig.start()
 # 手机连接 2.4G 无线网络（重要）
 # 关注 安信可科技 微信公众号，点击 应用开发→微信配网，或
 # 关注 乐鑫信息科技 微信公众号，点击 商铺→Airkiss 设备，或
-# 安装 EspTouch app，点击 EspTouch
+# 安装 EspTouch app，点击 EspTouch，或
+# 安装 腾讯连连 app，任意添加一个设备
 # 输入 Wi-Fi密码 后点击 连接按钮
 
 while not smartconfig.success():
