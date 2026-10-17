@@ -4,7 +4,6 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from machine import RTC
 import utime
-import ntptime as ntp
 
 try:
 	from .ws2812 import WS2812Matrix
@@ -16,11 +15,6 @@ from drivers.photoresistor import Photoresistor
 from utils.wifihandler import WifiHandler
 from utils.utilities import Utilities
 Config = Utilities.import_config()
-
-TIMEZONE = 8
-ntp.host = 'ntp.ntsc.ac.cn'
-ntp.NTP_DELTA -= TIMEZONE * 60 * 60
-# ntp.host = 'ntp1.aliyun.com'
 
 
 class MatrixClock(WS2812Matrix):
@@ -85,7 +79,7 @@ class MatrixClock(WS2812Matrix):
 		self.__last_hour = 0
 
 		try:
-			import sta_config
+			__import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
 			# 连接 wifi 动画
 			self.__animation.select_animation(Animation.ANIMATION_CONNECTING_1)
 			self.__animation.set_color_step(50)
@@ -95,36 +89,6 @@ class MatrixClock(WS2812Matrix):
 
 		self.clean()
 		self.set_brightness(20)
-
-	def sync_time(self, retry=5):
-		if WifiHandler.is_sta_connected():
-			print('sync time')
-
-			for _ in range(retry):
-				try:
-					ntp.settime()
-					time = utime.localtime()
-					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
-					return
-				except OSError as ose:
-					if str(ose) == '[Errno 116] ETIMEDOUT':
-						pass
-					else:
-						print(ose)
-				except Exception as e:
-					print(e)
-
-				utime.sleep(0.2)
-
-			if utime.time() < 60 * 60 * 2:
-				# first time sync time failed, reset
-				Utilities.hard_reset()
-			else:
-				print(f'Cannot reach ntp host: {ntp.host}, sync time failed')
-				time = utime.localtime()
-				print(f'RTC: {time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
-		else:
-			print('No wifi connected, sync time cancelled')
 
 	def show_time(self):
 		datetime = self.__rtc.datetime()
@@ -191,7 +155,7 @@ class MatrixClock(WS2812Matrix):
 			self.__mode = 0
 
 	def start(self):
-		self.sync_time()
+		WifiHandler.sync_time()
 		self.show_time()
 
 	def stop(self):
@@ -205,7 +169,7 @@ class MatrixClock(WS2812Matrix):
 		if self.__timer_count >= Config.PERIOD.CLOCK_SYNC:
 			print('sync time per 1 hour')
 			self.__timer_count = 0
-			self.sync_time()
+			WifiHandler.sync_time()
 
 		self.show_time()
 
