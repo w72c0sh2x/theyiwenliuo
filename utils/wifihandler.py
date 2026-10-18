@@ -4,8 +4,15 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 import network
 import socket
-from utime import sleep_ms
+import utime
+import ntptime
 import smartconfig
+from machine import reset
+
+TIMEZONE = 8
+ntptime.host = 'ntp.ntsc.ac.cn'
+ntptime.NTP_DELTA -= TIMEZONE * 60 * 60
+# ntptime.host = 'ntp1.aliyun.com'
 
 __station_status_message = {
 	network.STAT_IDLE: "network idle",
@@ -24,9 +31,8 @@ class WifiHandler(object):
 	STA_MODE = 1
 	STATION_CONNECTED = network.STAT_GOT_IP
 	STA_CONFIG_FILENAME = 'sta_config.py'
-
-	def __init__(self):
-		pass
+	STA_CONFIG_IMPORT_NAME = STA_CONFIG_FILENAME.split('.')[0]
+	INTERVAL_FROM_1970_TO_2000 = 946_656_000 # in second
 
 	@staticmethod
 	def set_sta_status(active:bool):
@@ -35,7 +41,7 @@ class WifiHandler(object):
 
 	@staticmethod
 	def set_sta_mode(essid=None, password='', timeout_sec=600):
-		sleep_ms(1000)
+		utime.sleep_ms(1000)
 		station = network.WLAN(network.STA_IF)
 		station.active(False)
 		station.active(True)
@@ -47,7 +53,7 @@ class WifiHandler(object):
 		if not station.isconnected():
 			if not essid:
 				try:
-					import sta_config
+					sta_config = __import__(WifiHandler.STA_CONFIG_IMPORT_NAME)
 					essid = sta_config.essid
 					password = sta_config.password
 				except ImportError:
@@ -55,7 +61,7 @@ class WifiHandler(object):
 					smartconfig.start()
 
 					while not smartconfig.success():
-						sleep_ms(500)
+						utime.sleep_ms(500)
 
 					essid, password, sc_type, token = smartconfig.info()
 					using_smartconfig = True
@@ -81,7 +87,7 @@ class WifiHandler(object):
 					pass
 
 				retry_count += 1
-				sleep_ms(500)
+				utime.sleep_ms(500)
 
 		status_code = station.status()
 
@@ -93,6 +99,37 @@ class WifiHandler(object):
 			WifiHandler.__send_smartconfig_ack(station.ifconfig()[0])
 
 		return status_code
+
+	@staticmethod
+	def sync_time(retry=5):
+		if WifiHandler.is_sta_connected():
+			print('sync time')
+
+			for _ in range(retry):
+				try:
+					ntptime.settime()
+					time = utime.localtime()
+					print(f'{time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
+					return
+				except OSError as ose:
+					if str(ose) == '[Errno 116] ETIMEDOUT':
+						pass
+					else:
+						print(ose)
+				except Exception as e:
+					print(e)
+
+				utime.sleep(0.2)
+
+			if utime.time() < 60 * 60 * 2:
+				# first time sync time failed, reset
+				reset()
+			else:
+				print(f'Cannot reach ntp host: {ntptime.host}, sync time failed')
+				time = utime.localtime()
+				print(f'RTC: {time[0]}-{time[1]}-{time[2]} {time[3]}:{time[4]}:{time[5]}')
+		else:
+			print('No wifi connected, sync time cancelled')
 
 	@staticmethod
 	def __send_smartconfig_ack(local_ip):
@@ -107,7 +144,7 @@ class WifiHandler(object):
 			port = 18266
 
 		for _ in range(30):
-			sleep_ms(100)
+			utime.sleep_ms(100)
 			try:
 				udp.sendto(token, ('255.255.255.255', port))
 			except OSError:
