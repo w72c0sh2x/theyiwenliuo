@@ -4,10 +4,14 @@ Gitee: https://gitee.com/walkline/micropython-ws2812-led-clock
 """
 from utils.utilities import Utilities
 import esp
+# import esp32
 
 esp.osdebug(None) # 注释此行可显示详细调试信息
 
 esp32c3 = Utilities.is_esp32c3()
+
+# channel 0/1 for esp32c3
+# if esp32c3: esp32.RMT.bitstream_channel(0)
 
 
 class Config(object):
