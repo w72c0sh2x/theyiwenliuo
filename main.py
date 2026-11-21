@@ -7,7 +7,7 @@ from utils.utilities import Utilities
 from utils.wifihandler import WifiHandler
 from matrix.matrix_clock import MatrixClock
 from drivers.button import Button
-from utils.dispatcher import Dispatcher
+from dispatcher import Dispatcher
 Config = Utilities.import_config()
 
 clock = None
@@ -47,7 +47,7 @@ if __name__ == '__main__':
 			press_cb=buttons_press_cb
 		)
 
-		tasks = Dispatcher()
+		tasks = Dispatcher(adjusting_rate=2 if Utilities.is_esp32c3() else 1)
 		clock = MatrixClock(Config.MATRIX.WIDTH, Config.MATRIX.HEIGHT)
 		clock.set_bright_max(Config.BRIGHTNESS.MAX)
 		tasks.add_work(clock.show_connecting, 50)
